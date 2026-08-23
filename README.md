@@ -11,6 +11,8 @@ Curated, reusable skills for AI coding agents. Each skill follows the open [Agen
 
 ## Install a skill
 
+The npm package is prepared but has not been published yet. Until the first npm release, use the [Git clone instructions](#clone-the-collection).
+
 List the catalog:
 
 ```bash
