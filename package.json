@@ -1,0 +1,44 @@
+{
+  "name": "miica-skills",
+  "version": "0.1.0",
+  "description": "Install curated Agent Skills for Claude, Codex, and compatible AI agents.",
+  "type": "module",
+  "bin": {
+    "miica-skills": "bin/miica-skills.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "skills/",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "validate:skills": "node scripts/validate-skills.js",
+    "check:secrets": "node scripts/check-secrets.js",
+    "check": "npm run validate:skills && npm run check:secrets && npm test && npm pack --dry-run --cache .npm-cache"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "agent-skills",
+    "claude",
+    "codex",
+    "zoho",
+    "llm"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MiiCaLabs/miica-skills.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MiiCaLabs/miica-skills/issues"
+  },
+  "homepage": "https://github.com/MiiCaLabs/miica-skills#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}
