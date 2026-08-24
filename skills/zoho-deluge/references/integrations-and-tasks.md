@@ -1,248 +1,144 @@
-# Integrations and External Tasks: invokeUrl, Webhooks, Connections, Mail/SMS
+# Integrations and tasks
 
-## invokeUrl - calling external REST APIs
+## Prefer native tasks when available
 
-`invokeUrl` is the general-purpose HTTP request task. It's billed against external-call limits (commonly 1 unit per call).
+Native `zoho.*` tasks usually provide a shorter, product-aware interface. Use `invokeUrl` when no suitable task exists or when direct API control is required. Verify the current task signature and product availability before implementation.
 
-### Basic syntax
+## Connections
+
+Use a named connection for OAuth or other supported authentication.
 
 ```deluge
 response = invokeUrl
 [
-    url: "https://api.example.com/endpoint",
+    url: "https://api.example.com/v1/resources"
     type: GET
+    connection: "example_oauth"
 ];
-info response;
 ```
 
-### Common parameters
+Connection scopes must cover the operation. Connection links are environment-specific, so keep them explicit placeholders in shared examples.
 
-| Parameter | Type | Default | Notes |
-|---|---|---|---|
-| `url` | Text | required | The full URL including query string or path. |
-| `type` | GET / POST / PUT / DELETE / PATCH / HEAD | GET | HTTP method. |
-| `headers` | Map | empty | Custom headers; `{"Authorization": "Bearer token", "Content-Type": "application/json"}`. |
-| `body` | Text / File / Key-Value | empty | Request body (typically JSON string for POST/PUT). |
-| `parameters` | Text / Key-Value | empty | Older/alternate body mechanism - see "parameters vs body" below. Cannot be combined with `body` in the same call. |
-| `files` | Map | empty | For multipart/form-data uploads; `{"fieldname": file_obj}`. |
-| `connection` | Text | none | Named connection supplying auth (see Connections below). |
-| `timeout` | Number | 40 seconds | Request timeout in seconds. |
-| `detailed` | true / false | false | When `true`, response includes status code/headers, not just the body. |
-| `response-format` | TEXT / MAP / FILE | TEXT | How to coerce the response before returning it. |
-| `response-decoding` | Text (charset) | UTF-8 | Character-set override for decoding the response body. |
+## invokeUrl
 
-### `parameters` vs `body` - pick one, and mind the content-type
-
-`invokeUrl` accepts **either** `parameters` **or** `body`, never both in the same call - passing both is a save-time error.
-
-- `body` is the newer, explicit mechanism: pass a TEXT (JSON string), FILE, or KEY-VALUE (Map) value. With a KEY-VALUE `body`, the default content-type is `multipart/form-data` (override to `x-www-form-urlencoded` if the API expects that).
-- `parameters` is the older mechanism, still common in existing/legacy scripts (and in some CRM connection-based examples). When `parameters` is given a **TEXT** value (e.g. `payload.toString()` from a Map), Deluge does **not** auto-detect JSON and defaults the request's content-type to `text/plain`.
-
-**Gotcha:** if you send a JSON string through `parameters` (or `body`) intending a JSON API call, you must explicitly set `headers: {"Content-Type": "application/json", ...}` - otherwise the receiving API (Zoho CRM's own REST API included) may reject or silently misparse the payload as plain text/form data.
+JSON request with a detailed response:
 
 ```deluge
-// WRONG - server likely receives this as text/plain, not JSON
-payload = {"data": records};
-response = invokeUrl
-[
-    url: apiUrl
-    type: PUT
-    parameters: payload.toString()
-    connection: "my_connection"
-];
+payload = {"name" : "Ada", "active" : true};
+headers = {"Content-Type" : "application/json"};
 
-// CORRECT - content-type made explicit
-headers = Map();
-headers.put("Content-Type","application/json");
 response = invokeUrl
 [
-    url: apiUrl
-    type: PUT
-    parameters: payload.toString()
+    url: "https://api.example.com/v1/contacts"
+    type: POST
     headers: headers
-    connection: "my_connection"
+    body: payload.toString()
+    connection: "example_oauth"
+    detailed: true
 ];
-```
 
-When writing new scripts prefer `body` over `parameters` (it's the currently-documented mechanism), but when editing an existing script that already uses `parameters`, keep it - just make sure `Content-Type` is set explicitly whenever the payload is JSON.
-
-### GET request (simplest case)
-
-```deluge
-response = invokeUrl
-[
-    url: "https://api.example.com/users?id=123",
-    type: GET
-];
-```
-
-### POST with JSON body
-
-```deluge
-payload = {"name": "Alice", "email": "alice@example.com"};
-response = invokeUrl
-[
-    url: "https://api.example.com/users",
-    type: POST,
-    headers: {"Content-Type": "application/json"},
-    body: payload.toString()  // convert Map to JSON string
-];
-```
-
-### Parsing the response
-
-```deluge
-response = invokeUrl[ url: "https://api.example.com/data" type: GET ];
-if(!isNull(response) && !response.isBlank())
+if(response.get("responseCode") >= 400)
 {
-    data = response.toMap();  // parse JSON response
-    info data.get("status");
+    info response.get("responseText");
+}
+```
+
+Rules:
+
+- Do not put commas between task attributes.
+- Do not specify both `body` and `parameters`.
+- TEXT body defaults to `text/plain`; set a matching `Content-Type` for JSON or XML.
+- KEY-VALUE body defaults to `multipart/form-data` unless overridden.
+- `parameters` on GET and DELETE becomes query parameters.
+- Supported methods include GET, POST, PUT, PATCH, DELETE, and OPTIONS.
+- `detailed: true` returns `responseCode`, `responseHeader`, and `responseText`.
+- `response-format` accepts NONE, STRING, or FILE. STRING and FILE are not applicable in Creator.
+- `invokeUrl` has a fixed 40-second socket timeout. It has no documented `timeout` attribute.
+- Each call consumes the host service's external-call allowance according to its plan.
+
+## Native task response handling
+
+Many integration tasks return an error Map instead of throwing.
+
+```deluge
+response = zoho.crm.createRecord("Leads", lead_data);
+if(response.containKey("code"))
+{
+    info response;
 }
 else
 {
-    info "Empty or null response";
+    lead_id = response.get("id");
 }
 ```
 
-### Handling errors
+Inspect the exact success and failure response documented for each task. A returned Map is not automatically a successful business operation.
 
-Since there's no try/catch, validate responses defensively:
-
-```deluge
-response = invokeUrl[ url: url type: POST body: payload.toString() ];
-if(!isNull(response) && response.contains("error"))
-{
-    info "API returned an error: " + response;
-}
-else if(!isNull(response))
-{
-    result = response.toMap();
-}
-```
-
-## Connections (OAuth & API keys)
-
-Named **connections** centralize credential management and avoid hardcoding secrets:
-
-```deluge
-response = invokeUrl
-[
-    url: "https://api.example.com/endpoint",
-    type: GET,
-    connection: "my_connection_name"
-];
-```
-
-The connection stores the API key, OAuth token, or basic auth credentials securely. Zoho manages credential rotation and refreshes tokens automatically.
-
-## sendmail - sending email
+## sendmail
 
 ```deluge
 sendmail
 [
-    from: zoho.adminuserid,
-    to: "recipient@example.com",
-    subject: "Order Confirmation",
-    message: "<h1>Thank you for your order</h1>"
+    from: zoho.adminuserid
+    to: recipient_email
+    subject: "Invoice " + invoice_number
+    message: "Your invoice is attached."
+    Attachments: file:invoice_pdf
 ];
 ```
 
-### Parameters
+Allowed sender values and attachment support vary by host product and account configuration. Use a verified sender. Never assume an arbitrary From address will be accepted.
 
-| Parameter | Type | Required | Notes |
-|---|---|---|---|
-| `from` | Text (email) | Yes | Must be `zoho.adminuserid` or `zoho.loginuserid` (or equivalent org account email). |
-| `to` | Text (email) | Yes | Recipient email address. |
-| `cc` | Text (email or List) | No | Carbon copy; if set, `from` must be `zoho.adminuserid`. |
-| `bcc` | Text (email or List) | No | Blind carbon copy; if set, `from` must be `zoho.adminuserid`. |
-| `subject` | Text | Yes | Email subject. |
-| `message` | Text (HTML) | Yes | Email body; supports HTML. |
-| `attachment` | File object or List | No | File(s) to attach. |
+## sendsms
 
-### Example with HTML and attachment
+`sendsms` availability, sender rules, and regional restrictions vary. Generate its syntax from the target product's editor and verify the current official page before use.
+
+## AI tasks
+
+AI task availability depends on the host product. Current Deluge tasks include:
+
+- `Zia[...]`
+- `zoho.ai.analyseSentiment()`
+- `zoho.ai.predictLanguage()`
+- `zoho.ai.parsePhoneNumber()`
+- `zoho.ai.recognizeText()`
+- `zoho.ai.findNamedEntities()`
+- `zoho.ai.parseAddress()`
+- `zoho.ai.translate()`
+- `zoho.ai.extractKeywords()`
+- `zoho.ai.detectObject()`
+- `zoho.ai.detectFace()`
+
+The Zia task uses block syntax:
 
 ```deluge
-file = invokeUrl[ url: "https://example.com/report.pdf" type: GET ];
-sendmail
+response = Zia
 [
-    from: zoho.adminuserid,
-    to: customer_email,
-    subject: "Your Report",
-    message: "<p>Attached is your requested report.</p>",
-    attachment: file
+    message: prompt
+    context: context_text
+    parameters: model_parameters
 ];
 ```
 
-### sendmail rules
+Files, context, and parameters are optional. Check the current task page for model availability, limits, file types, and rollout status. Do not send personal, confidential, or regulated data without an approved data-handling basis.
 
-- If `cc` or `bcc` is used, `from` must be `zoho.adminuserid` - using `zoho.loginuserid` with CC/BCC will throw a save error.
-- Recipient emails must be valid text - if pulling from a user field, guard against null/blank.
-- Multiple recipients in `to`/`cc`/`bcc`: pass a List or a comma-separated string.
+## Operational guidance
 
-## sendsms - sending SMS
+The following recommendations come from implementation practice:
 
-```deluge
-sendsms
-[
-    to: "+1234567890",
-    message: "Your code is 1234"
-];
-```
+- Include a stable external ID or idempotency key when an API supports one.
+- Retry only operations documented as safe to retry.
+- Log request identifiers, HTTP codes, and vendor error codes, not credentials or sensitive bodies.
+- Separate authentication failures, rate limits, validation errors, and transport failures in diagnostics.
+- Test connections and task signatures in the exact Zoho product and data center used for deployment.
 
-### Parameters
+## Sources
 
-| Parameter | Type | Required | Notes |
-|---|---|---|---|
-| `to` | Text (phone number) | Yes | Recipient phone number in E.164 format (e.g., +1234567890). |
-| `message` | Text | Yes | SMS message body (max ~160 chars; longer messages may be split). |
-
-## Webhooks (receiving data)
-
-Some Zoho products allow workflows to be triggered via webhooks. When a webhook is called, Deluge receives the POST body via the `input` keyword (a Map or JSON-like structure):
-
-```deluge
-// Inside a webhook-triggered workflow
-webhook_data = input;
-id = webhook_data.get("id");
-info "Received webhook for ID: " + id;
-```
-
-No explicit parsing needed - the webhook payload is automatically available as `input`.
-
-## Direct integrations (shortcuts for common tasks)
-
-These are aliases for common `invokeUrl` patterns; refer to the integration tasks page for each product for current syntax:
-
-- **Zoho CRM**: `zoho.crm.getRecords()`, `zoho.crm.insertRecords()`, `zoho.crm.updateRecords()`, etc. (see `references/integration-tasks-catalog.md`)
-- **Zoho Books**: `zoho.books.getRecords()`, `zoho.books.createRecord()`, etc.
-- **Zoho Desk**: `zoho.desk.getRecords()`, `zoho.desk.createRecord()`, etc.
-- And ~20+ other products (see `references/integration-tasks-catalog.md` for full list)
-
-These tasks handle JSON encoding/decoding and error codes automatically, so they're preferred over raw `invokeUrl` when available for your product.
-
-## Rate limits and external-call units
-
-- Each `invokeUrl` call consumes 1 external-call unit (shared across the Zoho org).
-- `invokeUrl` inside a 1000-iteration loop → 1000 units consumed.
-- Zoho plans have monthly external-call limits; scripts exceeding the limit fail silently.
-- Batch API calls where possible (send 10 records per call instead of 1 record per call × 10).
-
-## Timeout and retry patterns
-
-The default timeout is 40 seconds. If a remote API is slow, retry a bounded number of times - Deluge has no `while` loop, so use `for each` over a fixed-size literal list and `break` once a response comes back:
-
-```deluge
-response = null;
-retryAttempts = {1,2,3};
-for each attempt in retryAttempts
-{
-    try_response = invokeUrl[ url: url type: GET timeout: 60 ];
-    if(!isNull(try_response))
-    {
-        response = try_response;
-        break;
-    }
-}
-```
-
-(Note: Deluge has no actual try/catch, but this pattern simulates conditional retry logic.)
+- https://www.zoho.com/deluge/help/integration-tasks.html
+- https://www.zoho.com/deluge/help/webhook/invokeurl-api-task.html
+- https://www.zoho.com/deluge/help/connections.html
+- https://www.zoho.com/deluge/help/misc-statements/send-mail.html
+- https://www.zoho.com/deluge/help/misc-statements/send-sms.html
+- https://www.zoho.com/deluge/help/crm/create-record.html
+- https://www.zoho.com/deluge/help/ai-tasks.html
+- https://www.zoho.com/deluge/help/ai-tasks/zia-task.html

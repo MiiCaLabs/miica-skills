@@ -1,126 +1,75 @@
-# Zoho System Variables, Notifications, Platform Coverage & On-Premise Notes
+# Zoho variables and deployment boundaries
 
-Source: `https://www.zoho.com/deluge/help/system-variables.html`, `notifications-using-deluge.html`, `zoho-services-supporting-deluge.html`, `on-premise.html`.
+Zoho variables are predefined, read-only values. Availability and returned values depend on the host product and execution context.
 
-## `zoho.*` system variables
+## Common variables
 
-System variables are read-only values that Zoho populates at runtime. Use them to avoid hardcoding app-specific identifiers.
+| Variable | Documented value |
+|---|---|
+| `zoho.currentdate` | Current date in the application's configured format |
+| `zoho.currenttime` | Current date and time in the application's configured format |
+| `zoho.loginuser` | Current user's username, or `Public` in public contexts |
+| `zoho.loginuser.name` | Current user's name in Creator |
+| `zoho.loginuserid` | Current user's email address, or null where no authenticated user is available |
+| `zoho.adminuser` | Application owner's username |
+| `zoho.adminuserid` | Application owner's email address |
+| `zoho.appname` | Current Creator application link name |
+| `zoho.appuri` | Creator path `/<admin_username>/<application_link_name>/` |
+| `zoho.ipaddress` | Current user's public IP address, or null without a user session |
+| `zoho.device.type` | Creator device type: `web`, `phone`, or `tablet` |
 
-| Variable | Type | Example | Notes |
-|---|---|---|---|
-| `zoho.currentdate` | Date | `zoho.currentdate` | Today's date in the account's timezone. |
-| `zoho.currenttime` | Date-Time | `zoho.currenttime` | Current date and time. |
-| `zoho.loginuser` | Map | `zoho.loginuser.name`, `zoho.loginuser.role` | The authenticated user's details (Creator only for role). |
-| `zoho.loginuser.name` | Text | `"John Doe"` | Display name of the logged-in user. |
-| `zoho.loginuserid` | Text | `"123456789"` | User ID of the logged-in user (use for sendmail `from`). |
-| `zoho.adminuser` | Map | `zoho.adminuser.name` | The organization admin's details. |
-| `zoho.adminuserid` | Text | `"123456789"` | Organization admin's user ID (use for sendmail `from` when a script runs in admin context). |
-| `zoho.appname` | Text | `"My App"` | The form/app name where the script runs. |
-| `zoho.appuri` | Text | `"https://creatorapp.zoho.com/..."` | The full URL of the form/app. |
-| `zoho.ipaddress` | Text | `"192.168.1.1"` | Client IP address (available in some contexts). |
-| `zoho.device.type` | Text | `"desktop"` or `"mobile"` | Device type from which the form was accessed. |
+Examples:
 
 ```deluge
 today = zoho.currentdate;
-admin_email = zoho.adminuserid;
-app_url = zoho.appuri;
-
-// Using in sendmail
-sendmail
-[
-    from: zoho.adminuserid,
-    to: customer_email,
-    subject: "Update from " + zoho.appname,
-    message: "Your form was updated on " + zoho.currentdate
-];
+now = zoho.currenttime;
+actor_email = zoho.loginuserid;
+device = zoho.device.type;
 ```
 
-## Notifications overview
+Do not treat `zoho.loginuser` or `zoho.adminuser` as Maps. Do not treat variables ending in `userid` as internal numeric user IDs: these documented variables return email addresses.
 
-Deluge can trigger notifications (email, SMS, push, etc.) in workflows. Common notification types:
+`zoho.device.type` is Creator-only and returns `web` by default when an exact device cannot be determined, including some scheduled workflows.
 
-| Notification Type | Trigger | Example |
-|---|---|---|
-| **Email** | `sendmail` task | Send to users, admins, or external addresses. |
-| **SMS** | `sendsms` task | Send to phone numbers; requires SMS credits. |
-| **Slack** | Post to Slack via `invokeUrl` | Webhook integration to post messages. |
-| **In-app notification** | `notify` task (Creator) | Display a message in the user's notification center. |
-
-See `references/integrations-and-tasks.md` for `sendmail` and `sendsms` syntax.
-
-## Zoho services supporting Deluge (40+)
-
-Deluge is available across these Zoho products:
-
-**Core platforms**: Zoho Creator, CRM, Books, Desk, People, Cliq, Flow, Sheet, Projects, Recruit, WorkDrive, Writer, Connect, Bookings, Calendar, Inventory, Invoice, Billing.
-
-**Specialized**: Mail, SalesIQ, Sign, Map, Notebook, Analytics, SDP Cloud, Webinar (added ~Feb 2026), Show (added ~Feb 2026).
-
-**Zoho Ecosystem**: Forms, Survey, PageSense (analytics), Sprints, Campaigns, Subscriptions.
-
-Each product has its own integration task namespace (`zoho.crm.*`, `zoho.books.*`, etc.) - see `references/integration-tasks-catalog.md` for the full task list per product.
-
-## On-Premise & ServiceDesk Plus differences
-
-On-premise deployments (Creator on-premise, ManageEngine ServiceDesk Plus, and other ManageEngine products) have a materially restricted feature surface:
-
-### Not available on-premise
-
-1. **System variables** - Most `zoho.*` variables (like `zoho.loginuserid`, `zoho.appname`) are **not** available on-premise, except:
-   - **Creator on-premise**: `zoho.currentdate`, `zoho.currenttime`, `zoho.loginuserid` are available.
-   - **ServiceDesk Plus**: Very limited `zoho.*` support; check product-specific docs.
-
-2. **Zoho integration tasks** - `zoho.crm.*`, `zoho.books.*`, `zoho.desk.*`, etc. are **not available**. On-premise instances cannot call Zoho cloud services.
-
-3. **invokeUrl** - Restricted on some on-premise products; check product configuration and firewall rules.
-
-4. **AI/Zia tasks** - Not available on-premise.
-
-5. **Client functions** (hide/show/enable/disable) - Creator on-premise supports these; ServiceDesk Plus and other ManageEngine products do not.
-
-6. **Connections (OAuth)** - Limited support; most on-premise products use basic auth or API keys only.
-
-7. **Editor preferences** - Customization options (font, syntax builder) are limited or unavailable.
-
-### On-Premise + Cloud hybrid
-
-Some on-premise deployments allow scripts to call external APIs via `invokeUrl` (if outbound network access is enabled), but:
-- No Zoho cloud service calls.
-- Network and firewall policy restrictions apply.
-- No managed connections or OAuth - use connection strings or tokens directly (security risk; use with caution).
-
-### Checking environment
-
-There is no `zoho.environment` variable. To detect on-premise vs. cloud at runtime:
+Creator environments expose deployment-aware attributes:
 
 ```deluge
-// Try to access a cloud-only feature; catch failure defensively
-try_response = invokeUrl[ url: url type: GET ];
-if(!isNull(try_response))
-{
-    // likely cloud
-}
-else
-{
-    // could be on-premise without outbound access
-}
+environment_type = thisapp.environment.type;
+environment_link_name = thisapp.environment.linkname;
 ```
 
-### Migration path
+Use these attributes to prevent development or stage workflows from writing to production integrations. External Creator API callers must pass the environment explicitly because `thisapp.environment` resolves only inside Creator.
 
-Scripts written for cloud Deluge often need refactoring for on-premise:
-- Replace `zoho.crm.getRecords()` etc. with raw `invokeUrl` calls to on-premise REST APIs.
-- Remove AI/Zia task calls.
-- Test client functions (hide/show) thoroughly; on-premise support varies by product.
-- Avoid system variables if targeting on-premise - use hardcoded values or config files instead.
+## Context checks
 
-### ServiceDesk Plus specific notes
+- Public Creator forms can return `Public` or null for login variables.
+- Scheduled and backend workflows may not have an interactive user or device.
+- Product-specific variables outside this list must be verified in that product's documentation or generated editor context.
+- Do not build authorization solely from UI context or a user-supplied email. Enforce product permissions and server-side record rules.
 
-ServiceDesk Plus (ManageEngine's on-premise ticketing) has:
-- Very limited Deluge support (compared to Zoho Creator).
-- No `zoho.*` system variables except `zoho.currentdate`.
-- No Zoho integration tasks.
-- Basic custom function support.
-- Refer to ServiceDesk Plus docs for the exact Deluge feature set available in your version.
+## On-premise Deluge
 
-**Always confirm the target environment (cloud vs. on-premise, and product version) before writing Deluge scripts** - assumptions about feature availability can cause silent failures or unrecognizable errors.
+On-premise Deluge is not identical to cloud Deluge.
+
+For non-Creator on-premise products, the official support table states:
+
+- Zoho variables and predefined Zoho integration tasks are unavailable.
+- `invokeUrl` and custom connections are available with limits.
+- Basic, API key, OAuth2, and header-token authentication are supported. OAuth1 and AWS authentication are not.
+- AI tasks, native data access, Creator client functions, subform tasks, and blueprint tasks are unavailable.
+
+For Creator on-premise, the official support table states:
+
+- User-defined and Zoho variables are supported.
+- Most Deluge tasks are supported, except Zia AI tasks.
+- Predefined Zoho integration tasks remain unavailable.
+- Custom connections support a broader authentication set, with documented limitations.
+
+Use the live on-premise table as authority. Product releases can change the matrix.
+
+## Sources
+
+- https://www.zoho.com/deluge/help/zoho-variables.html
+- https://www.zoho.com/deluge/help/environment-attributes.html
+- https://www.zoho.com/deluge/help/on-premise.html
+- https://www.zoho.com/deluge/help/deluge-in-zoho-services.html

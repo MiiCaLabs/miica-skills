@@ -1,278 +1,146 @@
-# Records and Criteria (Fetching, Creating, Updating, Deleting)
+# Records and criteria
 
-## Criteria syntax
+Native record syntax in this file applies to Zoho Creator forms in the same application. Remote Creator and CRM operations use integration tasks.
 
-Criteria filter records using `[<field> <operator> <value>]` syntax. The square brackets are mandatory.
-
-### Basic criteria
+## Fetch Creator records
 
 ```deluge
-// Single condition
-Form[Status == "Active"];
-Form[Email == user_email];
-Form[Age > 18];
-
-// Multiple conditions (AND)
-Form[Status == "Active" && Age > 18];
-Form[Status == "Active" && Role != "Guest"];
-
-// OR conditions (group with && or fetch twice)
-Form[Status == "Active" || Status == "Pending"];
+customers = Customers[Status == "Active"];
+all_customers = Customers[ID != 0];
 ```
 
-### Supported operators in criteria
-
-| Operator | Meaning | Example |
-|---|---|---|
-| `==` | equals | `Status == "Active"` |
-| `!=` | not equals | `Role != "Guest"` |
-| `>` | greater than | `Age > 18` |
-| `<` | less than | `Salary < 50000` |
-| `>=` | greater or equal | `Score >= 80` |
-| `<=` | less or equal | `Limit <= 100` |
-| `contains` | substring (text fields) | `Name contains "John"` |
-| `startsWith` | text starts with | `Email startsWith "admin"` |
-| `endsWith` | text ends with | `Domain endsWith ".com"` |
-| `in` | value in a list | `Status in {"Active", "Pending"}` |
-
-### Complex criteria
+Use field link names, not display labels. A fetched-record collection exposes fields and supports iteration.
 
 ```deluge
-// IN list
-Form[Status in {"Active", "Pending", "Approved"}];
-
-// Combining AND/OR (AND has higher precedence)
-Form[Status == "Active" && (Age > 18 || HasConsent == true)];
-
-// Nested field criteria (e.g., linked records)
-Form[LinkedUser.Status == "Active"];
-```
-
-**Performance tip:** Use indexed fields (ID, Email, unique fields) for faster criteria evaluation. Complex OR criteria should be broken into multiple fetches if possible.
-
-## Fetching records (Creator)
-
-### Fetch with criteria (Creator only)
-
-```deluge
-records = Form[Email == user_email];
-```
-
-This returns a List of records matching the criteria.
-
-### Fetch all records
-
-```deluge
-all_records = Form[];  // empty criteria = all records
-```
-
-### Fetch with count and iteration
-
-```deluge
-active = Form[Status == "Active"];
-if(active.count() > 0)
+for each customer in customers
 {
-    for each rec in active
-    {
-        info rec.Name;  // access fields with dot notation
-        info rec.Salary;
-    }
+    info customer.Name;
+}
+
+if(customers.count() > 0)
+{
+    info customers.Name;
 }
 ```
 
-### Fetch a single record safely
+`customers.Name` returns the first record's field value. Use a loop when more than one record can match.
+
+## Sort and range
 
 ```deluge
-matches = Form[Email == email];
-if(matches.count() > 0)
+recent = Orders[Status == "Open"] sort by Added_Time desc range from 0 to 99;
+```
+
+Creator range positions are zero-based and inclusive. Use deterministic sorting when paging through records.
+
+## Add a Creator record
+
+```deluge
+customer_id = insert into Customers
+[
+    Name = input.Name
+    Email = input.Email
+    Status = "Active"
+];
+```
+
+The task returns the new record ID. Required fields must be supplied. Creator does not use `Customers.insert(map)` for same-app form records.
+
+## Update Creator records
+
+Update the first fetched record:
+
+```deluge
+customer = Customers[ID == input.Customer_ID];
+if(customer.count() > 0)
 {
-    record = matches.get(0);
-}
-else
-{
-    info "No match found";
-}
-```
-
-## Fetching records (other products: CRM, Books, Desk, etc.)
-
-Non-Creator products use integration tasks:
-
-```deluge
-// Zoho CRM
-records = zoho.crm.getRecords("Leads", 1, 10);
-
-// Zoho Books
-records = zoho.books.getRecords("Contacts");
-
-// Zoho Desk
-tickets = zoho.desk.getRecords("Tickets", 1, 20);
-```
-
-See `references/integration-tasks-catalog.md` and `references/integrations-and-tasks.md` for per-product task syntax.
-
-## Creating records
-
-### Creator: insert into form
-
-```deluge
-new_record = Map();
-new_record.put("Name", "Alice");
-new_record.put("Email", "alice@example.com");
-new_record.put("Status", "Active");
-Form.insert(new_record);
-```
-
-### Other products: integration task
-
-```deluge
-data = {"Name": "Alice", "Email": "alice@example.com"};
-result = zoho.crm.insertRecords("Contacts", data);
-```
-
-## Updating records
-
-### Creator: update records
-
-```deluge
-updates = Map();
-updates.put("Status", "Inactive");
-Form[ID == rec_id].update(updates);
-```
-
-### Fetch, modify, then update (safer pattern)
-
-```deluge
-matches = Form[ID == rec_id];
-if(matches.count() > 0)
-{
-    record = matches.get(0);
-    record.Status = "Inactive";
-    record.update();
+    customer.Status = "Active";
 }
 ```
 
-### Other products: integration task
+Update every matching record:
 
 ```deluge
-data = {"Name": "Alice Updated", "Status": "Active"};
-result = zoho.crm.updateRecords("Contacts", rec_id, data);
-```
-
-## Deleting records
-
-### Creator: delete with criteria
-
-```deluge
-Form[Status == "Archived"].delete();
-```
-
-**CAUTION:** Test the criteria thoroughly - this is irreversible. Consider soft-delete (set a status field) instead.
-
-### Delete a specific record
-
-```deluge
-Form[ID == rec_id].delete();
-```
-
-### Other products: integration task
-
-```deluge
-result = zoho.crm.deleteRecords("Contacts", rec_id);
-```
-
-## Accessing record fields
-
-### Fetched records (dot notation)
-
-```deluge
-record = Form[ID == rec_id].get(0);
-name = record.Name;           // fetch field value
-email = record.Email;
-created = record.Created_Time;
-```
-
-Field names are case-sensitive and use the exact field link name.
-
-### Map/manual records (`.get()`)
-
-```deluge
-data = {"name": "John", "age": 30};
-name = data.get("name");      // "John"
-age = data.get("age");        // 30
-missing = data.get("city");   // null (key doesn't exist)
-```
-
-## Sorting and pagination
-
-### Creator: sort by
-
-```deluge
-records = Form[Status == "Active"] sorted by Created_Time desc;
-```
-
-### Pagination in integration tasks
-
-```deluge
-// Fetch page 2, 10 records per page
-records = zoho.crm.getRecords("Contacts", 2, 10);
-```
-
-## Defensive record fetching
-
-Always guard against null/empty results:
-
-```deluge
-criteria_results = Form[Email == input_email];
-if(!isNull(criteria_results) && criteria_results.count() > 0)
+for each customer in Customers[Status == "Pending"]
 {
-    first_record = criteria_results.get(0);
-    // process record
+    customer.Status = "Active";
+}
+```
+
+## Delete Creator records
+
+```deluge
+delete from Temporary_Imports[Added_Time < cutoff_time];
+```
+
+Deletion uses `delete from Form[criteria]`. Confirm the criteria with a fetch and count before destructive production operations.
+
+## Criteria
+
+```deluge
+active = Customers[Status == "Active" && Email != null];
+matched = Customers[Name.contains("Labs")];
+prefix = Customers[Email.startsWith("sales@")];
+```
+
+Built-in criteria operators use method syntax such as `.contains()` and `.startsWith()`. Supported operators vary by Creator field type.
+
+Criteria best practices from Zoho include:
+
+- Use `==` where possible instead of broad text matching.
+- Avoid unnecessary criteria clauses.
+- Prefer `&&` over `||` where the business rule allows it.
+- Fetch only records needed by the workflow.
+
+## CRM records
+
+CRM tasks use module API names and field API names.
+
+```deluge
+lead_data = Map();
+lead_data.put("Last_Name", "Lovelace");
+lead_data.put("Company", "Analytical Engines");
+
+create_response = zoho.crm.createRecord("Leads", lead_data);
+if(create_response.containKey("code"))
+{
+    info create_response;
 }
 else
 {
-    info "No matching record found";
+    lead_id = create_response.get("id");
+    update_data = {"Lead_Status" : "Contacted"};
+    update_response = zoho.crm.updateRecord("Leads", lead_id, update_data);
 }
 ```
 
-## Anti-patterns to avoid
+Inspect each response for documented error fields before using returned IDs.
 
-1. **Fetch all, then filter in Deluge** - Fetch all records then use an `if` to filter them. Instead, push the filter into the criteria.
-   ```deluge
-   // Bad
-   all_records = Form[];
-   for each rec in all_records
-   {
-       if(rec.Status == "Active") { ... }
-   }
+## Remote Creator records
 
-   // Good
-   active = Form[Status == "Active"];
-   for each rec in active { ... }
-   ```
+Use the report link name for remote fetch and update tasks, and a configured connection where the signature requires one.
 
-2. **Double-fetching the same criteria** - Check `.count() > 0` then fetch again.
-   ```deluge
-   // Bad
-   if(Form[Email == email].count() > 0)
-   {
-       records = Form[Email == email];  // fetch twice
-   }
+```deluge
+response = zoho.creator.createRecord(
+    owner_name,
+    app_link_name,
+    form_link_name,
+    input_values,
+    other_params,
+    connection_name
+);
+```
 
-   // Good
-   records = Form[Email == email];
-   if(records.count() > 0) { ... }
-   ```
+Do not mix remote integration signatures with same-app Creator data-access grammar.
 
-3. **Unsafe field access on null records** - Always check `.count() > 0` before `.get()`.
-   ```deluge
-   // Bad
-   record = Form[Email == email].get(0);  // crashes if empty
+## Sources
 
-   // Good
-   matches = Form[Email == email];
-   if(matches.count() > 0)
-   {
-       record = matches.get(0);
-   }
-   ```
+- https://www.zoho.com/deluge/help/fetch-records/fetch-collection-records.html
+- https://www.zoho.com/deluge/help/data-access/add-record.html
+- https://www.zoho.com/deluge/help/data-access/update-records.html
+- https://www.zoho.com/deluge/help/data-access/delete-records.html
+- https://www.zoho.com/deluge/help/criteria.html
+- https://www.zoho.com/deluge/help/crm/create-record.html
+- https://www.zoho.com/deluge/help/crm/update-record.html
+- https://www.zoho.com/deluge/help/creator/create-record.html
+- https://www.zoho.com/deluge/help/creator/update-record.html

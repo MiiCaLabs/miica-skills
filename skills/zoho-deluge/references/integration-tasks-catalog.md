@@ -1,90 +1,86 @@
-# Per-Product Integration Task Catalog
+# Integration task catalog
 
-Every Zoho product exposes its own namespace of integration tasks (wrappers over that product's REST API, billed against external-call limits - same rules as `invokeUrl`, see `references/integrations-and-tasks.md`). This file catalogs the **task names** documented per product at `https://www.zoho.com/deluge/help/<product>-tasks.html`, so you know what exists before reaching for a raw `invokeUrl`. Task names below are as titled in the official docs; the callable Deluge syntax generally follows the `zoho.<product>.<taskName>(<args in defined order>)` pattern shown in `references/integrations-and-tasks.md` for the well-established products (CRM, Books, Desk, Creator, People) - **confirm exact current argument order/signature from the live docs** (`https://www.zoho.com/deluge/help/<product>-tasks.html`) before shipping a call to a task you haven't used before, since Zoho revises these periodically (e.g. CRM's V8 task set added April 2026).
+Deluge integration tasks wrap selected Zoho REST APIs.
 
-## Zoho CRM
+```deluge
+response = zoho.<service>.<action>(<parameters>);
+```
 
-Extension/vertical-solution-oriented tasks: **Get User Data**, **Invoke Connector Task**, **Set Organization Variable**, **Get Organization Variable**, **Get Module Metadata**, **Get All Module Metadata**, **Get Organization Information**.
+Use this file for routing, not as a frozen API catalog. Open the current product page before writing the call.
 
-Standard record CRUD (`zoho.crm.*` / `zoho.crm.v8.*`): `getRecords`, `getRecordById`, `insertRecords`, `updateRecords`, `deleteRecords`, `searchRecords`, `getRelatedRecords`, `convertLead`, `getUsers` - see `references/integrations-and-tasks.md` for the general calling convention. As of **April 2026**, Zoho CRM V8 integration tasks were introduced (`crm-integration-tasks-V8.html`) adding 13 operations including record creation, updates, searches, and file attachments - prefer the V8 task set for new scripts if the product/account supports it.
+## Supported service families
 
-## Zoho Books
+The official index currently links task catalogs for:
 
-**Get Organizations**, **Create Record**, **Update Record**, **Get Records**, **Get Records By ID**, **Mark Status**, **Get Templates**.
+- SDP Cloud
+- Zoho Analytics, Bookings, Books, Billing, Calendar, Creator, CRM, CRM V8, Desk, Inventory, Invoice, Mail, Map, Notebook, People, Projects, Recruit, SalesIQ, Sheet, Sign, WorkDrive, and Writer
+- Zoho Cliq and Zoho Connect
 
-## Zoho Desk
+Release notes can expose additions before the main index is refreshed. Recent official notes also list Zoho Webinar, Show, Learn, One, and Directory integrations. Availability in a given host product can be narrower than the global index.
 
-**Get Records**, **Get Record By ID**, **Create**, **Update**, **Search Records**, **Get Related Records**, **Get Related Record By ID**, **Create Related Record**, **Update Related Record**, **Move** (ticket to a department), **Split** (a reply into a new ticket), **Merge** (two or more tickets).
+## CRM examples
 
-## Zoho Creator (calling one Creator app's data from another script/app)
+Standard CRM tasks include operations such as:
 
-**Get Records**, **Get Record by ID**, **Create Record**, **Update Records**, **Update Record**.
+```deluge
+record = zoho.crm.getRecordById("Leads", lead_id);
+records = zoho.crm.getRecords("Leads", page, per_page);
+matches = zoho.crm.searchRecords("Leads", criteria);
+created = zoho.crm.createRecord("Leads", record_data);
+updated = zoho.crm.updateRecord("Leads", lead_id, update_data);
+```
 
-## Zoho Mail
+Use module and field API names. Do not substitute generic names such as `insertRecords()` or `updateRecords()` for these documented tasks.
 
-**Get folders**, **Move to folder**, **Create folder**, **Set flag**, **Remove flag**, **Mark as read**, **Mark as unread**, **Get message**, **Create tag**, **Get Labels**, **Set Tag**.
+CRM V8 uses its own namespace:
 
-## Zoho Cliq
+```deluge
+created = zoho.crm.v8.createRecord(
+    "Leads",
+    record_data,
+    options_map,
+    connection_name
+);
+```
 
-Messaging: **Post to chat**, **Post to chat as admin**, **Post to channel**, **Post to channel as admin**, **Post to bot**, **Post to bot as admin**, **Post to user**.
+The options and connection arguments are positional. If a later optional argument is supplied, include preceding placeholders as documented.
 
-Cliq database: **Create Record**, **Get Records**, **Get Record by ID**, **Update Record**, **Delete Record**, **Delete Records**.
+Do not silently replace standard CRM tasks with V8 tasks. The namespace, available actions, options, and response contracts differ. Choose one deliberately and verify the target host supports it.
 
-## Zoho People
+## Creator integration examples
 
-**Get Records**, **Create**, **Get Record By ID**, **Update**.
+Remote Creator tasks use owner, application link name, form or report link name, input values, parameters, and connection arguments in a task-specific order.
 
-## Zoho Sheet
+```deluge
+created = zoho.creator.createRecord(
+    owner_name,
+    app_link_name,
+    form_link_name,
+    input_values,
+    other_params,
+    connection_name
+);
+```
 
-**Get Sheets**, **Create Records**, **Get Records**, **Update Records**, **Find**, **Replace**, **Insert CSV**.
+These tasks are separate from same-app Creator grammar such as `insert into Form [...]`.
 
-## Zoho Projects
+## Selection rules
 
-**Get Portals**, **Get Project Details**, **Create Project**, **Get Records**, **Get Record By ID**, **Create**, **Update**, **Associate Logs** (time log), **Update Associated Logs**.
+1. Check whether the target service has a native integration task.
+2. Verify that the task is available from the host product.
+3. Verify the current signature, API names, scopes, options, and response shape.
+4. Use a connection when required or when cross-account access is intended.
+5. Use `invokeUrl` only when the native task does not expose the required API behavior.
 
-## Zoho Recruit
+Each executed task consumes an external call under the host service's plan. Calls in a loop count per execution, including failures that return a response.
 
-**Add Records**, **Get Record By ID**, **Get Records**, **Search Records**, **Update Record**, **Upload File**.
+## Sources
 
-## Zoho WorkDrive
-
-**Upload File**, **Create Folder**, **Create Team Folder**.
-
-## Zoho Writer
-
-**Get Documents**, **Upload Document**, **Share Document**, **Get Merge Fields**, **Merge And Send** / **Merge And Send V2**, **Sign Document**, **Get All Fields**, **Merge and Sign**, **Merge and Store V2**, **Merge and Invoke**, **Mark or Unmark Favorite Document**, **Rename Document**, **Enable or Disable Track Changes**, **Add or Update Description**, **Lock or Unlock Documents**, **Mark Document as Ready**, **Mark or Revert Final Documents**, **Get Merge Templates**, **Get Sign Templates**, **Get Fillable Templates**, **V2 Sign Documents**, **Generate Fillable Link**.
-
-## Zoho Connect
-
-**My Networks**, **My Groups**, **Add Post**, **Get Post**, **Get Post by TPID**, **Update Post**, **Delete Post**, **Send Me Private Message**, **Add Comment**, **Add Users to a Group**.
-
-## Zoho Bookings
-
-**Get workspaces**, **Get record by ID**, **Get Related Records**, **Get available slots**, **Create appointment**, **Update records**.
-
-## Zoho Calendar
-
-**Create Event** (a minimal task set as of this crawl - confirm current docs for any additions).
-
-## Zoho Inventory
-
-**Get organization**, **Get Records**, **Get Records By ID**, **Create Record**, **Update Record**, **Mark Status**.
-
-## Zoho Invoice
-
-**Get Records**, **Get Record By ID**, **Create**, **Update**.
-
-## Zoho Billing (Subscriptions)
-
-**Get Organization**, **Get List**, **Retrieve**, **Create**, **Update**.
-
-## Other products with dedicated task pages (not deep-crawled - fetch on demand)
-
-Zoho Analytics (`analytics-tasks.html`), Zoho SalesIQ (`salesiq-tasks.html`), Zoho Sign (`sign-tasks.html`), Zoho Map (`map-tasks.html`), Zoho Notebook (`notebook-tasks.html`), SDP Cloud (`sdp-tasks.html`). If a task is needed for one of these, fetch `https://www.zoho.com/deluge/help/<name>-tasks.html` directly - don't guess task names/signatures for products not cataloged above.
-
-## Newer/recently added integration surfaces (per release notes, as of this crawl)
-
-- **Zoho Webinar** - 17 new tasks (added ~Feb 2026).
-- **Zoho Show** - 5 new tasks (added ~Feb 2026).
-
-These are recent enough that they may not appear in older training data - always verify current syntax against `https://www.zoho.com/deluge/help/` if the user needs one of them.
+- https://www.zoho.com/deluge/help/integration-tasks.html
+- https://www.zoho.com/deluge/help/crm-integration-tasks-V8.html
+- https://www.zoho.com/deluge/help/crm/create-record.html
+- https://www.zoho.com/deluge/help/crm/create-record-V8.html
+- https://www.zoho.com/deluge/help/creator-tasks.html
+- https://www.zoho.com/deluge/help/creator/create-record.html
+- https://www.zoho.com/deluge/help/webhook/invokeurl-api-task.html
+- https://www.zoho.com/deluge/help/release-notes.html

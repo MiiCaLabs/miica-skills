@@ -1,386 +1,127 @@
-# Zoho Creator-Only Tasks and Features
+# Zoho Creator tasks
 
-Deluge in Creator has exclusive tasks and syntax unavailable in CRM, Books, Desk, or other Zoho products. These include form-event scripts, record iteration on forms, composite fields, client functions, and AI/Zia tasks.
+These features are Creator-specific. Availability also depends on workflow event, field type, account rollout, and deployment model.
 
-## AI / Zia tasks (11 tasks)
+## Client functions
 
-Creator integrates with Zoho Zia (AI assistant). These tasks are Creator-only:
-
-- `zoho.ai.predict()` - predict a value using a trained model.
-- `zoho.ai.generateText()` - generate text content.
-- `zoho.ai.summarize()` - summarize text or records.
-- `zoho.ai.extractData()` - extract structured data from unstructured text.
-- `zoho.ai.analyzeImage()` - analyze images and extract information.
-- `zoho.ai.transcribeAudio()` - convert audio to text.
-- `zoho.ai.sentiment()` - analyze sentiment in text.
-- `zoho.ai.entityRecognition()` - identify entities (names, dates, locations) in text.
-- `zoho.ai.categoryClassification()` - classify text into predefined categories.
-- `zoho.ai.translate()` - translate text between languages.
-- `zoho.ai.getInsights()` - get AI-driven insights on form data.
-
-Refer to Creator-specific Deluge docs for exact syntax and available model parameters.
-
-## Blueprint tasks (2 tasks)
-
-Blueprints are workflow state machines in Creator. Deluge can interact with them:
-
-- `getBlueprint()` - retrieve the current blueprint state and available transitions.
-- `executeTransition(<transition_name>)` - move to the next blueprint state.
+Client functions run only in supported form events.
 
 ```deluge
-current_state = getBlueprint();
-if(current_state == "Draft")
+if(input.Contact_Mode == "Email")
 {
-    executeTransition("Submit for Approval");
-}
-```
-
-## Conditions (record-level filtering)
-
-Creator's **conditions** allow workflow scripts to run conditionally based on form field values:
-
-```deluge
-// Example condition in a workflow event
-if(Status == "Approved" && Amount > 1000)
-{
-    // only runs if both conditions are true
-    sendmail[ ... ];
-}
-```
-
-## Data Access (form record operations)
-
-### Fetch records from a form
-
-```deluge
-// Fetch all records
-all_records = Form[];
-
-// Fetch with criteria
-active_records = Form[Status == "Active"];
-
-// Fetch a single record safely
-matches = Form[Email == user_email];
-if(matches.count() > 0)
-{
-    record = matches.get(0);
-}
-```
-
-### Add (insert) record
-
-```deluge
-new_rec = Map();
-new_rec.put("Name", "John Doe");
-new_rec.put("Email", "john@example.com");
-Form.add(new_rec);
-```
-
-or using the `insert` alias:
-
-```deluge
-Form.insert(new_rec);
-```
-
-### Update records
-
-```deluge
-updates = {"Status": "Completed", "Completion_Date": zoho.currentdate};
-Form[ID == rec_id].update(updates);
-```
-
-### Delete records
-
-```deluge
-Form[ID == rec_id].delete();
-// or delete with criteria
-Form[Status == "Archived"].delete();
-```
-
-## Composite fields
-
-Composite fields bundle related sub-fields into a single logical unit. Creator provides special syntax to work with them:
-
-### Name composite (First Name, Last Name)
-
-```deluge
-record = Form[ID == rec_id].get(0);
-full_name = record.Name;  // returns a Map with subfields
-first = full_name.get("first_name");
-last = full_name.get("last_name");
-
-// Set a composite field
-new_name = Map();
-new_name.put("first_name", "John");
-new_name.put("last_name", "Doe");
-record.Name = new_name;
-record.update();
-```
-
-### Address composite (Street, City, State, Zip, Country)
-
-```deluge
-address = record.Address;  // Map with address sub-fields
-street = address.get("street");
-city = address.get("city");
-state = address.get("state");
-zip = address.get("zip");
-country = address.get("country");
-```
-
-### URL composite (protocol, domain, path)
-
-```deluge
-url_field = record.Website_URL;
-protocol = url_field.get("protocol");
-domain = url_field.get("domain");
-path = url_field.get("path");
-```
-
-### Image composite
-
-```deluge
-image = record.Logo;  // File object
-file_name = image.getFileName();
-file_size = image.getFileSize();
-```
-
-### Users composite (lookup to Users form)
-
-```deluge
-assignee = record.Assigned_To;  // Map with user sub-fields
-user_id = assignee.get("id");
-user_name = assignee.get("name");
-user_email = assignee.get("email");
-```
-
-### Subform (nested records)
-
-See "Subform tasks" below for detailed subform manipulation.
-
-### Lookup composite (reference to another form)
-
-```deluge
-parent = record.Parent_Record;  // Map with lookup fields
-parent_id = parent.get("id");
-parent_name = parent.get("name");
-```
-
-## Client functions (hide/show/enable/disable/alert)
-
-These functions run on the client (browser) and require a form context (e.g., On Load, On Success):
-
-### Show / Hide fields
-
-```deluge
-show "Field_Name";
-hide "Field_Name";
-
-// Show/hide based on condition
-if(Status == "Active")
-{
-    show "Approval_Date";
+    show Email;
+    hide Phone;
+    enable Email;
 }
 else
 {
-    hide "Approval_Date";
+    hide Email;
+    show Phone;
+    enable Phone;
 }
 ```
 
-### Enable / Disable fields
+Use field link names without quotes. Hiding a field changes the UI only. It does not secure the field or its data.
+
+Other client functions include focus, add or append, select or deselect, clear, alert, and reload. Confirm event support on each function page.
+
+## Dynamic field access
 
 ```deluge
-enable "Field_Name";
-disable "Field_Name";
-
-// Disable read-only fields after submission
-disable "Submitted_Date";
-```
-
-### Alert dialog (blocks user action until dismissed)
-
-```deluge
-alert "Please fill all required fields before submitting.";
-```
-
-### Set field focus
-
-```deluge
-focus "Email_Address";
-```
-
-### Cancel / prevent submit or delete
-
-```deluge
-if(Amount > 100000 && !Approval_Granted)
+values = Map();
+for each field_name in getFieldNames()
 {
-    alert "This record requires management approval.";
-    cancel submit;
-}
-
-// Also available:
-cancel delete;  // prevent record deletion
-```
-
-## Miscellaneous tasks
-
-### getFieldNames - list all fields in a form
-
-```deluge
-field_names = getFieldNames();
-for each name in field_names
-{
-    info name;
+    values.put(field_name, getFieldValue(field_name));
 }
 ```
 
-### getFieldValue - fetch a field's current value
+`getFieldNames()` and the direct `getFieldValue()` form work in supported workflows, not Creator custom functions. A fetched record can use `record.getFieldValue("Field_Link_Name")`.
+
+## Composite fields
+
+Name and Address fields use subfield syntax, not Map access.
 
 ```deluge
-email = getFieldValue("Email_Address");
+input.Customer_Name.first_name = "Ada";
+input.Customer_Name.last_name = "Lovelace";
+input.Billing_Address.country = "United Kingdom";
 ```
 
-Typically used in form events to access field values entered by the user.
-
-### cancelSubmit / cancelDelete
+Add a record with subfields:
 
 ```deluge
-if(email.isBlank())
-{
-    alert "Email is required";
-    cancel submit;  // prevent form submission
-}
+customer_id = insert into Customers
+[
+    Customer_Name.first_name = "Ada"
+    Customer_Name.last_name = "Lovelace"
+    Billing_Address.district_city = "London"
+];
 ```
 
-## List / Map manipulations
+Use the exact generated subfield link names. Additional fields of the same composite type can receive numeric suffixes.
 
-Deluge's general List and Map functions apply in Creator as well - see `references/collections.md`.
-
-## Subform tasks (nested records)
-
-Subforms allow one-to-many relationships within a form. Access subform rows:
-
-### Get subform rows
+## Subform rows
 
 ```deluge
-subform_rows = record.Line_Items;  // List of Maps, one per subform row
-for each row in subform_rows
-{
-    qty = row.get("Quantity");
-    price = row.get("Unit_Price");
-    info "Item: Qty=" + qty + ", Price=" + price;
-}
+new_row = Orders.Items();
+new_row.Product = product_id;
+new_row.Quantity = 1;
+
+rows = Collection();
+rows.insert(new_row);
+input.Items.insert(rows);
 ```
 
-### Add a subform row
+The parent form and subform link names create a row object. Insert the row or a row collection into the input subform. Custom sorting and workflow-event restrictions apply.
+
+## Blueprint
+
+Blueprint attributes are available through:
 
 ```deluge
-new_row = Map();
-new_row.put("Product_Name", "Laptop");
-new_row.put("Quantity", 2);
-new_row.put("Unit_Price", 800);
-record.Line_Items.add(new_row);
-record.update();
+info input.Blueprint.Name;
+info input.Blueprint.Current_Stage;
+info input.Blueprint.Status;
 ```
 
-### Update a subform row
+Blueprint tasks require form, blueprint, transition or stage, and record ID link values in the documented order.
 
 ```deluge
-rows = record.Line_Items;
-if(rows.count() > 0)
-{
-    rows.get(0).put("Quantity", 5);
-}
-record.update();
+thisapp.blueprint.executeTransition(
+    "Orders",
+    "Order_Flow",
+    "Mark_Delivered",
+    input.ID
+);
+
+thisapp.blueprint.changeStage(
+    "Orders",
+    "Order_Flow",
+    "Delivered",
+    input.ID
+);
 ```
 
-### Delete a subform row
+Conditions on a transition still apply. Deluge documents a maximum of 50 blueprint statements per function.
 
-```deluge
-rows = record.Line_Items;
-rows.remove(0);  // remove first row
-record.update();
-```
+## Approvals
 
-## File upload field tasks
+Creator approval workflows are configured in the application builder. Do not invent generic functions such as `sendForApproval()`, `approveRecord()`, or `getApprovalStatus()` unless the target product's current editor and documentation explicitly provide them.
 
-File upload fields return File objects. Manipulate them:
+## File-upload fields
 
-```deluge
-// Access an uploaded file
-file = record.Attachment;
-name = file.getFileName();
-size = file.getFileSize();
-content = file.getFileContent();
+Creator documents File Upload field values as TEXT in form and fetched-record contexts. Do not assume every upload field value is a general FILE object. File task support depends on how the file was obtained and the workflow context.
 
-// Convert file to PDF
-pdf_file = file.convertToPDF();
+## Sources
 
-// Delete an uploaded file
-record.Attachment = null;
-record.update();
-```
-
-## User roles & properties
-
-### Get current user info
-
-```deluge
-user_id = zoho.loginuserid;
-user_name = zoho.loginuser.name;  // system variable
-```
-
-### Check user role (Creator-specific)
-
-```deluge
-current_role = zoho.loginuser.role;
-if(current_role == "Admin")
-{
-    show "Admin_Settings";
-}
-```
-
-## XML manipulation (executeXpath)
-
-Parse and extract data from XML responses:
-
-```deluge
-xml_response = "<root><item><name>Product A</name><price>100</price></item></root>";
-name = executeXpath(xml_response, "/root/item/name/text()");
-info name;  // "Product A"
-```
-
-## openUrl - navigate to external URL
-
-```deluge
-// Open a URL (typically in a new tab or redirect)
-openUrl("https://www.example.com");
-
-// Open with parameters
-openUrl("https://app.example.com/search?q=" + encodeUrl(search_term));
-```
-
-## Form events where scripts run (Creator-only)
-
-Deluge scripts in Creator run at specific form events:
-
-- **On Load** - form renders; access field values, show/hide fields, prefill values.
-- **On Validate** - before record submission; validate data, show alerts, cancel submit.
-- **On Success** - after successful submission; send notifications, trigger workflows.
-- **On User Input** - field value changed; auto-calculate, update related fields.
-- **Subform Add Row** - new row added to subform.
-- **Subform Delete Row** - row removed from subform.
-- **Subform Update Row** - existing row modified.
-
-Each event context provides access to different objects (`record`, `input`, `Form`, etc.) - verify the docs for which variables are available in which events.
-
-## Approval tasks (Creator-only)
-
-Some Creator forms use approval workflows. Tasks include:
-
-- `getApprovalStatus()` - check current approval state.
-- `sendForApproval()` - programmatically send a record for approval.
-- `approveRecord()` - approve a pending record.
-- `rejectRecord()` - reject a pending record with a reason.
-
-Refer to Creator Deluge docs for current syntax and approval-workflow integration.
+- https://www.zoho.com/deluge/help/client-functions.html
+- https://www.zoho.com/deluge/help/client-functions/hide-show.html
+- https://www.zoho.com/deluge/help/miscellaneous/getfieldnames.html
+- https://www.zoho.com/deluge/help/miscellaneous/getfieldvalue.html
+- https://www.zoho.com/deluge/help/composite-fields-usage.html
+- https://www.zoho.com/deluge/help/miscellaneous/insert-subform-row.html
+- https://www.zoho.com/deluge/help/creator-blueprint-tasks.html
+- https://www.zoho.com/deluge/help/creator-blueprint-tasks/blueprint-attributes.html
+- https://www.zoho.com/deluge/help/creator-blueprint-tasks/execute-transition.html
+- https://www.zoho.com/deluge/help/creator-blueprint-tasks/change-stage.html
+- https://www.zoho.com/deluge/help/creator-field-datatype.html
