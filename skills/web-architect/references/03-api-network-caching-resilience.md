@@ -9,7 +9,7 @@
 - **Cache-Control rules:**
   - *Hashed built assets (`/assets/app.8f3a1.js`, `/_next/static/*`):* `Cache-Control: public, max-age=31536000, immutable`.
   - *SPA entry point (`index.html`):* `Cache-Control: no-cache` (systematic ETag revalidation to get the latest deployed version).
-  - *Public SSR/ISR content:* `s-maxage` + `stale-while-revalidate` with targeted invalidation (`revalidateTag` / `updateTag` under Next.js 16; reminder: since Next.js 15+, `fetch` is no longer cached by default, and caching is explicitly *opt-in* through `use cache` or dedicated options).
+  - *Public SSR/ISR content:* `s-maxage` + `stale-while-revalidate` with targeted invalidation (`revalidateTag` / `updateTag` under Next.js 16, with *opt-in* caching through `use cache`).
 - **Critical trap (cache poisoning / CDN session leak):**
   - **Never** put a shared CDN cache (`public`, `s-maxage`) in front of an SSR route that reads session cookies or `Authorization` headers without setting `Cache-Control: private, no-store` (or a strict `Vary` key and a clean separation of public shells vs private islands). A mistake here exposes user A's data to user B.
 

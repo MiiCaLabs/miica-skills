@@ -21,14 +21,16 @@ Access control remains the number one cause of serious compromises and now inclu
 
 ## 2. Authentication, sessions, and JWT (`A07:2025`, ASVS 5.0 V6-V10)
 
-- **JWT / OAuth 2.1 / OIDC audit:**
+- **OAuth references:** RFC 9700 (Security BCP), RFC 8252 (native apps) and RFC 10017 (browser-based apps, BCP 212, Aug. 2026). OAuth 2.1 is still an IETF draft (revision -17 of 2026-10-31): use it as a target profile and cite the RFCs in contractual requirements.
+- **JWT / OAuth / OIDC audit:**
   - Explicitly validate the allowed algorithm server-side (allowlist, for example `RS256` or `EdDSA`; reject `none` and prevent `RS256` -> `HS256` asymmetric/symmetric confusion with the public key used as secret).
   - Always validate `exp`, `nbf`, `iss` (exact issuer), and `aud` (the exact audience of this API; a token issued for service A must not be accepted by service B).
   - Never trust a dynamic `jku` / `x5u` in the JWT header without a strict allowlist.
 - **Session and token lifecycle:**
   - Web cookies must be `HttpOnly; Secure; SameSite=Lax` (or `Strict`), with session ID regeneration at login (anti *Session Fixation*).
+  - Public clients (SPA, mobile, desktop): prefer sender-constrained tokens (**DPoP**, RFC 9449) when the IdP supports it.
   - Refresh tokens with **single-use rotation** and **reuse detection** (revoke the whole token family if an already-consumed refresh token is replayed).
   - Effective server-side invalidation on logout, password change, or admin revocation (beware long-lived stateless JWTs that cannot be revoked).
 - **Brute force, MFA, and password reset:**
-  - Phishing-resistant MFA (**FIDO2/WebAuthn/Passkeys**) for privileged accounts.
+  - Phishing-resistant MFA (**FIDO2/WebAuthn/Passkeys**) for privileged accounts. Synced passkeys meet AAL2 of NIST SP 800-63B-4. For production administration, require device-bound keys (security key, TPM, Secure Enclave).
   - Rate limiting and anti-enumeration protection on login, password reset (single-use CSPRNG tokens >= 128 bits stored **hashed** in the database with a short TTL <= 15-30 min), and OTP.

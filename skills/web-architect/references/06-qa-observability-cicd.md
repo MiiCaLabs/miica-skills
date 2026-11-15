@@ -3,7 +3,7 @@
 ## 1. Effective web test pyramid
 
 - **Strict static analysis:** TypeScript `strict: true` + `noUncheckedIndexedAccess: true`, a linter with accessibility rules (`eslint-plugin-jsx-a11y` / Angular template a11y rules) and framework rules (React Hooks/Compiler).
-- **Unit and component integration tests (Vitest + Testing Library + MSW):**
+- **Unit and component integration tests (Vitest + Testing Library + MSW, Vitest being Angular's default runner since v22):**
   - Test real rendered behavior (accessible roles, user interactions), never private internal state or internal CSS classes.
   - Use **MSW (*Mock Service Worker*)** to intercept network calls at the `fetch`/XHR level in tests rather than mocking internal HTTP clients.
 - **E2E and accessibility tests (Playwright + Axe):**
@@ -22,9 +22,10 @@
 
 ## 3. JS supply chain, containers, and *version skew*
 
-- **npm supply chain governance (critical on the web):**
-  - Mandatory reproducible installs (`pnpm install --frozen-lockfile` / `npm ci`) with `--ignore-scripts` or a strict audit of `postinstall` scripts.
-  - Use Renovate/Dependabot with a **cooldown delay (*minimumReleaseAge*, for example 3-7 days)** to avoid immediately absorbing a compromised npm package, combined with CVE/malware scanning (Socket.dev, Snyk, `pnpm audit`) and a generated **CycloneDX SBOM**.
+- **npm supply chain governance (critical on the web):** principles and thresholds in `security-auditor` (reference 05). Concrete application:
+  - Reproducible installs (`pnpm install --frozen-lockfile` / `npm ci`). pnpm 10+ blocks install scripts by default: keep an explicit allowlist (`onlyBuiltDependencies`) instead of re-allowing everything.
+  - Minimum release age, on both the installer and the bot side: `minimumReleaseAge` (pnpm, 1 day by default in v11), `min-release-age` (npm 11.10+), `npmMinimalAgeGate` (Yarn 4.10+), `minimumReleaseAge` (Renovate). Aim for 7 days, except for security fixes.
+  - CVE/malware scanning (Socket.dev, Snyk, `pnpm audit`) and a **CycloneDX SBOM** on every build.
 - **Production packaging (Docker / Edge / CDN):**
   - Minimal multi-stage Docker builds (non-root user, Node.js LTS or edge runtime, **`output: 'standalone'`** mode under Next.js to drastically reduce image size).
 - **Protection against *version skew* (rolling deployments):**

@@ -1,6 +1,6 @@
 ---
 name: mobile-architect
-description: Architecture, engineering standards, and production patterns for enterprise mobile applications (iOS & Android — Native Swift/Kotlin, KMP, Flutter, React Native, or Rust core via UniFFI). Use when designing, scaffolding, auditing, or implementing mobile apps involving offline-first storage (SQLite/SQLCipher), resilient sync, background execution constraints, enterprise auth (OIDC PKCE, Keychain/Keystore, biometrics, App Attest / Play Integrity), accessibility, MDM/AppConfig, or App Store / Google Play release pipelines.
+description: Architecture, engineering standards, and production patterns for enterprise mobile applications (iOS & Android — Native Swift/Kotlin, KMP, Flutter, React Native, or Rust core via UniFFI). Use when designing, scaffolding, auditing, or implementing mobile apps involving offline-first storage (SQLite/SQLCipher), resilient sync, background execution constraints, enterprise auth (OIDC PKCE, Keychain/Keystore, biometrics, App Attest / Play Integrity), accessibility, MDM/AppConfig, or App Store / Google Play release pipelines. Not for desktop apps (use desktop-architect) nor for a standalone security audit or threat model (use security-auditor).
 ---
 
 # Enterprise Mobile Architect (iOS & Android)
@@ -31,7 +31,7 @@ Before answering or generating code, read only the relevant files in `references
 - `references/03-os-lifecycle-background-network.md`: Strict iOS/Android background reality (quotas, *Doze Mode*, Android 14+ `ForegroundService`), resilience on cellular and enterprise tunnels, TLS / certificate pinning strategy, push (APNs/FCM without PII), and Universal/App Links.
 - `references/04-ux-accessibility-adaptive.md`: Native ergonomics (iOS HIG / Material 3 Edge-to-Edge and Predictive Back), perceived performance (cold start < 1.5 s, optimistic UI), keyboard/foldable/tablet handling, and strict accessibility (Dynamic Type 200%, 44pt/48dp targets, VoiceOver/TalkBack).
 - `references/05-security-identity-attestation.md`: OAuth 2.0 + PKCE (`ASWebAuthenticationSession` / Custom Tabs, never a WebView), Keychain / Keystore + cryptographic biometrics (`CryptoObject` / Secure Enclave), App Attest and Play Integrity vs naive anti-root checks, snapshot/log confidentiality, and Privacy Manifest.
-- `references/06-qa-observability-mdm-release.md`: Mobile test pyramid (shared tests, Maestro, XCUITest/Compose, device farms), dSYM/R8/NDK symbolication, store constraints (Android **16 KB** ELF alignment, iOS **PrivacyInfo.xcprivacy**), CI signing without 2FA, and MDM distribution (ABM / Managed Google Play / AppConfig).
+- `references/06-qa-observability-mdm-release.md`: Mobile test pyramid (shared tests, Maestro, XCUITest/Compose, device farms), dSYM/R8/NDK symbolication, store constraints (minimum Xcode SDK, annual `targetSdk`, **16 KB** alignment, **PrivacyInfo.xcprivacy**, Android developer verification), CI signing without 2FA, and MDM distribution (ABM / Managed Google Play / AppConfig).
 
 ## Workflow
 
@@ -41,7 +41,7 @@ Before answering or generating code, read only the relevant files in `references
    - Justify the stack choice objectively (do not impose cross-platform if the team is already native, nor duplicated pure-native code when complex business logic is identical).
    - Design async flows and storage to survive a brutal OS process kill at any moment.
    - Enforce zero blocking I/O on the Main/UI thread, zero plaintext secrets in `UserDefaults`/`SharedPreferences`, and zero WebView for OAuth authentication.
-4. **Check compliance:** Verify accessibility (Dynamic Type / TalkBack / VoiceOver), OS background constraints, store requirements (Android 16 KB, iOS Privacy Manifest), and MDM configurability.
+4. **Check compliance:** Verify accessibility (Dynamic Type / TalkBack / VoiceOver), OS background constraints, store requirements (minimum Xcode/SDK, Google Play `targetSdk`, 16 KB, Privacy Manifest), and MDM configurability.
 
 ## Gotchas
 
@@ -50,4 +50,5 @@ Before answering or generating code, read only the relevant files in `references
 - Never store large files/media as SQLite `BLOB`s, and never forget `NSURLIsExcludedFromBackupKey` on iOS caches (App Store rejection risk for iCloud Backup bloat).
 - Never validate biometrics with a simple app-level boolean (`if authenticated`): bind biometrics to unlocking a hardware key (Secure Enclave / Keystore `CryptoObject`).
 - Never deploy rigid certificate pinning without backup pins and an OTA rotation plan, or a certificate renewal or enterprise TLS proxy can lock out the whole fleet in production.
+- Never freeze the CI toolchain: Apple has rejected uploads not built with Xcode 26 and the iOS 26 SDK since 2026-04-28, Google Play has rejected updates that do not target API 36 since 2026-08-31, and these thresholds rise every year.
 - Never send business data or PII in clear text in push notification payloads (APNs/FCM), and never rely on purely local root/jailbreak detection without server-side attestation (App Attest / Play Integrity).

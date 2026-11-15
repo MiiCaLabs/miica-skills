@@ -13,7 +13,7 @@ Systematically combine two complementary layers:
 1. **Automated layer (fast coverage of the known):**
    - *Secrets:* Gitleaks / TruffleHog (over the full Git history).
    - *SAST:* Semgrep / CodeQL (OWASP rules, source -> sink taint flow).
-   - *SCA and containers/IaC:* Trivy / Grype / Checkov / `cargo-audit` / `pnpm audit`.
+   - *SCA and containers/IaC:* Trivy / Grype / Checkov / `cargo-audit` / `pnpm audit` (images and actions of these tools pinned by digest or SHA).
    - *DAST / API fuzzing:* Nuclei / OWASP ZAP / negative contract tests on staging.
 2. **Expert manual layer (where 80% of critical flaws are):**
    - Object-by-object checks (**BOLA/IDOR**) and **multi-tenant** isolation.

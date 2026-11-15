@@ -23,7 +23,7 @@
 
 ## 2. Identity, secrets, and biometrics
 
-- **OAuth 2.0 + PKCE authentication:** Open the system browser, return through a registered URL scheme (`monapp://oauth/callback`) or an ephemeral loopback HTTP server (`127.0.0.1:<port>`):
+- **OAuth 2.0 + PKCE authentication (RFC 8252, RFC 9700):** Open the system browser, return through a registered URL scheme (`monapp://oauth/callback`) or an ephemeral loopback HTTP server (`127.0.0.1:<port>`):
   - Always validate `state` + the PKCE `code_verifier`.
   - Close the loopback listener right after receiving the callback (or on a short timeout) and return a static HTML page that **reflects no request parameter** (prevents XSS on localhost).
 - **Secret storage and OS keychain pitfalls:**
@@ -37,6 +37,6 @@
 
 ## 3. Artifact integrity and auditability
 
-- **Cryptographic chain of trust:** Streaming **SHA-256** hashing and asymmetric signature verification (**Ed25519** or **Sigstore**) before executing or deploying any downloaded artifact.
-- **E2EE (if secrets are synchronized):** *Envelope encryption* with keys decrypted only in RAM and erased with `zeroize` on release.
-- **Audit log and PII masking:** Structured logging of sensitive actions with an automatic masking filter (Bearer tokens, API keys, user paths) in logs and diagnostic exports.
+- **Downloaded artifacts:** Streaming **SHA-256** hashing and signature verification (**Ed25519** or **Sigstore**) before any execution.
+- **E2EE (if secrets are synchronized):** Keys decrypted only in RAM and erased with `zeroize` on release.
+- Primitives, *envelope encryption*, audit log content and PII masking: see `security-auditor` (references 03 and 06). Desktop-specific addition: also mask local user paths in logs and the diagnostic bundle.

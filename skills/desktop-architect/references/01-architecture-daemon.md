@@ -72,7 +72,7 @@ enterprise-desktop-app/
 
 | Criterion | Tauri v2 (enterprise default) | GPUI (specialized cases only) |
 | :--- | :--- | :--- |
-| **Maturity and governance** | **Stable ecosystem (2.x)**, tracked release cycle, built-in ACL audit | `crates.io` frozen at `0.2.2`; often requires a git pin on the Zed repo or a community fork |
+| **Maturity and governance** | **Stable ecosystem (2.x)**, tracked release cycle, built-in ACL audit | `gpui` 0.2.2 (Oct. 2025) remains the latest version published under that name. Outside Zed: weekly `gpui-pre` snapshots (Longbridge, gpui-kit) pinned to an exact version (`=0.3.x`), or a git dependency on Zed, with a planned upgrade cadence |
 | **Rendering budget** | Standard 60 FPS (OS WebView) | **120 FPS (8.3 ms/frame)** via GPU rendering (Metal/Vulkan/DX) |
 | **Memory footprint** | 80-180 MB with window open (~35 MB closed) | **30-50 MB** constant |
 | **WCAG 2.2 AA accessibility** | **Native** via DOM/ARIA and OS screen readers | **Costly** (NSAccessibility/UIA bridges and keyboard navigation must be built) |
@@ -96,7 +96,11 @@ impl DbWriter {
         f: impl FnOnce(&mut rusqlite::Connection) -> rusqlite::Result<R> + Send + 'static,
     ) -> anyhow::Result<R> {
         let (resp_tx, resp_rx) = tokio::sync::oneshot::channel();
-        self.tx.send(Box::new(move |conn| { let _ = resp_tx.send(f(conn)); })).await?;
+        self.tx
+            .send(Box::new(move |conn| { let _ = resp_tx.send(f(conn)); }))
+            .await
+            // SendError<Box<dyn FnOnce + Send>> is not Sync: a direct `?` into anyhow does not compile
+            .map_err(|_| anyhow::anyhow!("SQLite writer actor stopped"))?;
         Ok(resp_rx.await??)
     }
 }
@@ -104,5 +108,5 @@ impl DbWriter {
 
 - **UI thread isolation:** No disk, network, or SQL I/O on the main thread (`tokio::spawn` / `spawn_blocking` under Tauri, `cx.background_executor()` under GPUI).
 - **Typed contracts (contract-first):**
-  - Under Tauri v2, `tauri-specta` v2 (still `2.0.0-rc.x`, so pin the exact version together with `specta`) generates the TypeScript bindings. If enterprise policy forbids `rc` dependencies, prefer `ts-rs` + versioned JSON schemas.
+  - Under Tauri v2, `tauri-specta` v2 generates the TypeScript bindings. It is still a release candidate (`2.0.0-rc.26` as of 2026-10-21): pin the exact version together with `specta`. If enterprise policy forbids `rc` dependencies, use `ts-rs` with versioned JSON schemas.
   - Use `tauri::ipc::Channel<T>` for continuous streams (progress, logs) and asynchronous custom URI protocols for large binaries.

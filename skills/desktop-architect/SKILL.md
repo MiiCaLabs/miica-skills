@@ -1,6 +1,6 @@
 ---
 name: desktop-architect
-description: Architecture, engineering standards, and production patterns for enterprise desktop applications in Rust (Tauri v2 primary, GPUI for specialized high-density UIs). Use when designing, scaffolding, auditing, or implementing desktop apps involving background daemons, local-first storage (SQLite WAL + CAS), synchronization engines, system tray menus, OS notifications, corporate network/MDM constraints, enterprise security (OAuth PKCE, Keychain, biometrics), or CI/CD signing and notarization.
+description: Architecture, engineering standards, and production patterns for enterprise desktop applications in Rust (Tauri v2 primary, GPUI for specialized high-density UIs). Use when designing, scaffolding, auditing, or implementing desktop apps involving background daemons, local-first storage (SQLite WAL + CAS), synchronization engines, system tray menus, OS notifications, corporate network/MDM constraints, enterprise security (OAuth PKCE, Keychain, biometrics), or CI/CD signing and notarization. Not for iOS/Android targets, including Tauri Mobile (use mobile-architect), nor for a standalone security audit or threat model (use security-auditor).
 ---
 
 # Enterprise Desktop Architect (Rust / Tauri v2 / GPUI)
@@ -50,6 +50,7 @@ Before answering or generating code, read only the relevant files in `references
 - Never concentrate all business logic in `src-tauri`, and never split a simple tool into 8 empty crates.
 - Never block `RunEvent::ExitRequested` blindly without distinguishing window closure (`code.is_none()`) from a real exit order (`app.exit(0)`), and never destroy the WebView of a popover that must open instantly.
 - Never use `webpki-roots` alone in an enterprise app: use `rustls-platform-verifier` so root certificates injected by corporate TLS proxies are honored.
+- Never compile `tauri-plugin-wdio-webdriver` (the embedded WebDriver server used by E2E tests) into a release build: restrict it to `cfg(debug_assertions)` or a test-only Cargo feature, because it exposes app automation over local HTTP.
 - Never expose a companion-CLI Unix Domain Socket or Named Pipe without verifying peer identity (`SO_PEERCRED` / `LOCAL_PEERCRED`, or a Windows DACL on the user SID).
 - Never use JSON `invoke` to stream large logs or binaries: prefer `tauri::ipc::Channel` or an asynchronous URI protocol.
 - Never store tokens or secrets in SQLite or JSON: use the native OS keychain (`keyring`), taking macOS signing rules into account.

@@ -6,10 +6,10 @@ The worst enterprise web anti-pattern is imposing a single framework for every u
 
 | Primary need | Recommended stack | Why (and when to avoid) |
 | :--- | :--- | :--- |
-| **Marketing sites, documentation, blogs, SEO e-commerce storefronts** | **Astro (5/6)** | Zero client JS by default, typed *Content Layer*, *Server Islands* for dynamic blocks, and native CSP (v6). **Avoid** for a highly interactive SaaS workspace like Figma/Jira. |
-| **Internal business app / dashboard behind authentication (no SEO)** | **React (Vite SPA) + TanStack Router/Query** or **Angular 21+** | Zero SSR/hydration/server-cache complexity, trivial static CDN deployment behind a BFF/API. **Avoid** the Next.js App Router if 100% of routes require login and need no SEO. |
-| **Hybrid portal with SEO + dynamic e-commerce + full-stack React** | **Next.js (15/16 App Router)** | RSC, streaming SSR, Turbopack (default in v16), *Cache Components* (`use cache` + PPR). **Watch** the operational complexity of caching and the coupling to a Node/Edge server. |
-| **Large typed business applications, structured multi-team** | **Angular (21+ Zoneless)** | Standardized architecture (DI, Router, Forms, HTTP), native **Signals + Zoneless** (no `zone.js`), strict control and long-term maintenance. **Avoid** for small lightweight landing pages. |
+| **Marketing sites, documentation, blogs, SEO e-commerce storefronts** | **Astro (6)** | Zero client JS by default, typed *Content Layer* and *Live Content Collections*, *Server Islands* for dynamic blocks, stable native hash-based CSP. Node 22 minimum. **Avoid** for a highly interactive SaaS workspace like Figma/Jira. |
+| **Internal business app / dashboard behind authentication (no SEO)** | **React (Vite SPA) + TanStack Router/Query** or **Angular 22+** | Zero SSR/hydration/server-cache complexity, trivial static CDN deployment behind a BFF/API. **Avoid** the Next.js App Router if 100% of routes require login and need no SEO. |
+| **Hybrid portal with SEO + dynamic e-commerce + full-stack React** | **Next.js (16.x App Router)** | RSC, streaming SSR, Turbopack (default in v16), *Cache Components* (`use cache` + PPR, announced as the default model of Next.js 17). **Watch** the operational complexity of caching and the coupling to a Node/Edge server. |
+| **Large typed business applications, structured multi-team** | **Angular (22+ Zoneless)** | Standardized architecture (DI, Router, Forms, HTTP), Zoneless and `OnPush` by default, stable Signal Forms and `httpResource`, strict control and long-term maintenance. **Avoid** for small lightweight landing pages. |
 
 ## 2. The BFF pattern (*Backend-for-Frontend*)
 

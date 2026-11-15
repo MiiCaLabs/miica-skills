@@ -13,21 +13,24 @@
 
 - **Crash reporting and CI symbolication:** Systematically archive **dSYMs** (iOS) and the **ProGuard/R8 mapping + native `.so` symbols** (Android) on every release build to get usable stack traces (Sentry, Firebase Crashlytics, or Datadog).
 - **Priority mobile health metrics:** Track first the *Crash-Free Users Rate* (> 99.8%), Android **ANRs**, iOS **OOM kills / App Hangs**, and cold start time (P95).
-- **Frugal telemetry:** Buffer locally with a disk size cap, send only in compressed batches (preferably on Wi-Fi for large dumps), with a user-triggerable **diagnostic bundle export scrubbed of secrets** in advanced settings.
+- **Frugal telemetry:** Buffer locally with a disk size cap, send only in compressed batches (preferably on Wi-Fi for large dumps), with a user-triggerable **diagnostic bundle export scrubbed of secrets** in advanced settings. Propagate the W3C `traceparent` header on API calls to correlate a slow mobile action with its backend trace, as on the web.
 
 ## 3. Store requirements, CI signing, and compliance (2026+)
 
 - **Android (Google Play):**
   - **AAB** (*Android App Bundle*) format with **Play App Signing** (separate upload key stored in CI secrets / HSM).
   - **R8 / ProGuard** enabled (`isMinifyEnabled = true`, `isShrinkResources = true`) to reduce size and lightly obfuscate.
-  - **Mandatory 16 KB alignment:** All native `.so` libraries (NDK, Rust, Flutter, React Native, SQLCipher) must be aligned for **16 KB** memory pages (required for apps targeting Android 15+; non-compliant updates blocked on Google Play starting February 2027).
+  - **Mandatory 16 KB alignment:** All native `.so` libraries (NDK, Rust, Flutter, React Native, SQLCipher) must be aligned for **16 KB** memory pages. Google Play has required it since 2025-11-01 for new apps and updates targeting Android 15+, and extensions expired on 2026-05-31. Check each bundle in the Play Console App Bundle Explorer.
+  - **Annual `targetSdk`:** since 2026-08-31, new apps and updates must target Android 16 (API 36). An existing app left on API 35 is no longer offered to new users on recent Android versions. Private Managed Google Play apps are exempt from this rule.
   - Check licenses and the **SBOM** of all third-party SDKs (Play Data Safety must be consistent with the embedded SDKs).
 - **iOS (App Store / TestFlight):**
   - CI automation without fragile 2FA through an **App Store Connect API Key** (`.p8`) + **Fastlane Match** (encrypted repository for certificates and provisioning profiles) or Xcode Cloud.
-  - Before upload, check for **`PrivacyInfo.xcprivacy`**, the signatures of third-party XCFrameworks listed by Apple, and the absence of `com.apple.quarantine` attributes.
+  - Build with Xcode 26 and the iOS 26 SDK at minimum (required at upload since 2026-04-28). Plan for the iOS 27 SDK: a UIKit app without the UIScene lifecycle crashes at launch (TN3187), and Xcode 27 no longer installs on Intel Macs, which rules out Intel CI runners.
+  - Before upload, check for **`PrivacyInfo.xcprivacy`** and the signatures of third-party XCFrameworks listed by Apple.
 
 ## 4. Enterprise distribution (MDM and AppConfig) and updates
 
+- **Android developer verification:** since 2026-09-30 in Brazil, Indonesia, Singapore and Thailand (worldwide extension from 2027), an app installed outside a managed channel on a certified device must come from a verified developer. Apps pushed by a DPC/EMM and private Managed Google Play apps stay exempt with no time limit. Still register packages that are also distributed outside MDM (direct APK download, partners).
 - **Private vs public distribution:**
   - Prefer **Apple Business Manager (Custom Apps / Unlisted Apps)** and **Managed Google Play** (Intune, Jamf, Workspace ONE) over the legacy *Apple Developer Enterprise (In-House)* program, whose certificate revocation instantly cuts off the whole deployed fleet.
 - **Managed configuration (AppConfig):**

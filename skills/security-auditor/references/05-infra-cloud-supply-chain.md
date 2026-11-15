@@ -5,12 +5,15 @@
 Compromise today goes overwhelmingly through dependencies and build pipelines:
 - **Dependencies and registries:**
   - Mandatory lockfiles (`package-lock.json`, `pnpm-lock.yaml`, `Cargo.lock`, `poetry.lock`, `go.sum`) enforced in CI (`--frozen-lockfile` / `--locked`).
-  - Watch for **typosquatting**, *Dependency Confusion* (unscoped private packages or packages missing from the private registry), and maintainer takeover (use a cooldown delay before auto-merging minor/patch updates).
+  - Watch for **typosquatting**, *Dependency Confusion* (unscoped private packages or packages missing from the private registry), and maintainer takeover: 7-day cooldown by default, on both the installer and the bot side, with an explicit exception for security fixes.
+  - Registries: npm revoked classic tokens in December 2025 and capped granular tokens at 90 days. Publish through OIDC *trusted publishing*, with no stored token.
   - Generate an **SBOM** (CycloneDX/SPDX) and sign artifacts/containers (**Sigstore / Cosign**, **SLSA** compliance).
 - **CI/CD pipeline hardening (GitHub Actions / GitLab CI):**
   - **Full SHA pinning:** For any third-party action, use `uses: owner/action@<full-40-char-sha> # v4.1.2` (`@v4` tags are mutable and frequently hijacked).
   - **Least-privilege `GITHUB_TOKEN`:** Declare `permissions: contents: read` at workflow level and grant `write` or OIDC only to the exact job that publishes.
-  - **Critical `pull_request_target` trap:** Never run fork-originated code (checkout of the PR head) in a `pull_request_target` workflow that has access to repo secrets or a write token.
+  - **Critical `pull_request_target` trap:** Never run fork-originated code (checkout of the PR head) in a `pull_request_target` workflow that has access to secrets, a write token or the repository cache. Since 2025-12-08, GitHub always runs this trigger from the default branch, which does not protect against the fork code you run inside it. On public repositories, a default rule disables it, enforced automatically from 2026-12-02: allow it only by exception, workflow by workflow.
+  - **CI cache poisoning:** a PR-triggered workflow can write cache entries that the release workflow later restores. Never restore a cache in a publishing job, isolate `id-token: write` in a dedicated job that runs no unreviewed code, and protect publishing with a manual-approval environment. Real case: 42 TanStack packages compromised in May 2026, with an OIDC token extracted from runner memory.
+  - **Security tools themselves:** scanners run with CI secrets. Pin them by SHA or digest like any action (Trivy compromised in March 2026, `tj-actions/changed-files` in March 2025).
   - **CI script injection:** Never interpolate `${{ github.event.issue.title }}`, `${{ github.head_ref }}`, or a branch name directly in a bash `run:` block; pass it through an `env:` variable.
 
 ## 2. Cloud, containers, and misconfigurations (`A02:2025`, risk #2)

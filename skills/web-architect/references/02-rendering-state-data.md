@@ -4,7 +4,7 @@
 
 Do not make everything dynamic SSR by default:
 - **SSG / static pre-rendering:** Stable public pages, documentation, low-volatility product pages (CDN latency < 50 ms).
-- **Hybrid (Next.js 16 PPR / Cache Components or Astro 5/6 Server Islands):** HTML shell cached at the CDN + dynamic holes streamed per request (cart, user avatar, personalized pricing) through `<Suspense>` or `server:defer`.
+- **Hybrid (Next.js 16 PPR / Cache Components or Astro 6 Server Islands):** HTML shell cached at the CDN + dynamic holes streamed per request (cart, user avatar, personalized pricing) through `<Suspense>` or `server:defer`.
 - **Dynamic SSR:** Only if the initial HTML depends on the request for real-time SEO or critical permissions.
 - **CSR (client-side rendering):** Admin areas, interactive editors, real-time consoles behind authentication.
 
@@ -23,8 +23,8 @@ Do not make everything dynamic SSR by default:
   - Enable the **React Compiler** (`reactCompiler: true` under Next.js 16 / Babel Vite plugin) after fixing the violations reported by `eslint-plugin-react-hooks` (*Rules of React*).
   - Stop writing `useMemo` / `useCallback` / `React.memo` by hand for micro-optimization in new code; reserve `useMemo` for stable dependencies of rare effects.
   - **Forbidden:** Syncing derived state through `useEffect` + `setState` (double render and desynchronization); always compute directly during render.
-- **Angular 21+ (Zoneless and Signals):**
-  - Start without `zone.js` (`provideZonelessChangeDetection()` / default in v21+) with **`ChangeDetectionStrategy.OnPush`** everywhere.
+- **Angular 22+ (Zoneless and Signals):**
+  - Zoneless has been the default since v21 and `OnPush` the default since v22: stop declaring `changeDetection: OnPush`, and treat components that the migration marks `ChangeDetectionStrategy.Eager` as debt to pay down.
   - Use **`signal()`**, **`computed()`**, and *Signal Inputs/Outputs* (`input()`, `output()`) for UI state; confine **RxJS** to complex async flows (`switchMap` cancellation, websockets with `bufferTime` before updating a Signal).
 - **Astro (Islands architecture):**
   - Keep HTML static by default. Hydrate interactive islands sparingly: prefer `client:visible` or `client:idle`, and use `client:load` only for immediately critical interactive elements *above the fold*.

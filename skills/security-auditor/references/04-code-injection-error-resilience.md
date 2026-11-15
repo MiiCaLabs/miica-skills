@@ -10,8 +10,8 @@
 - **Other critical injections:**
   - **SSTI (*Server-Side Template Injection*):** Never compile a template (Jinja2, Handlebars, EJS, Pug) from a user-entered string.
   - **XXE:** Explicitly disable DTDs and external entities on every XML parser.
-  - **Untrusted deserialization:** Ban `pickle` (Python), unfiltered `ObjectInputStream` (Java), `yaml.load` (prefer `safe_load`), and `unserialize()` (PHP) on any external data.
-  - **XSS / DOM-XSS:** Automatic contextual encoding, no `innerHTML`/`dangerouslySetInnerHTML`/`v-html` without strict DOMPurify, and URL scheme validation (`https:`/`http:` only, block `javascript:`).
+  - **Untrusted deserialization:** Ban `pickle` (Python), unfiltered `ObjectInputStream` (Java), `yaml.load` (prefer `safe_load`), and `unserialize()` (PHP) on any external data. Include framework serialization protocols in monitoring (e.g. the Flight protocol of React Server Components, CVE-2025-55182, unauthenticated RCE).
+  - **XSS / DOM-XSS:** Automatic contextual encoding and no raw HTML sink without a strict sanitizer. Per-framework detail (nonce-based CSP, Trusted Types, URL schemes): `web-architect` reference 05.
 
 ## 2. File upload security
 
@@ -29,6 +29,9 @@ A poorly controlled upload frequently leads to stored XSS, SSRF, or RCE:
 
 ## 4. Systems with AI / LLM agents (if applicable)
 
-- **Prompt injection (direct and indirect):** Treat content from RAG documents, emails, web pages, or external tools as untrusted; never trust instructions found in data.
-- **Least privilege on tool calls:** The agent must not hold global admin rights; each tool call (SQL, API, email) runs **within the strict ACL context of the current user**, with explicit confirmation (*human-in-the-loop*) for irreversible or destructive actions.
+References: OWASP Top 10 for LLM Applications and OWASP Top 10 for Agentic Applications 2026 (ASI01 to ASI10, published 2025-12-09). Guiding principle: least agency, every capability the task does not need is attack surface.
+
+- **Prompt injection (direct and indirect, ASI01 *Agent Goal Hijack*):** Treat content from RAG documents, emails, web pages, or external tools as untrusted; never trust instructions found in data.
+- **Least privilege on tool calls (ASI02, ASI03):** The agent must not hold global admin rights; each tool call (SQL, API, email) runs **within the strict ACL context of the current user**, with explicit confirmation (*human-in-the-loop*) for irreversible or destructive actions.
 - **ACLs in RAG:** Filter vector embeddings/chunks according to the user's document permissions **before** or **during** retrieval (otherwise an unauthorized user exfiltrates HR/confidential documents through the LLM).
+- **MCP servers and third-party tools (ASI04):** treat each MCP server as a dependency: pinned version, verified origin, a per-user token limited to the needed scope, never a shared service account with global rights.

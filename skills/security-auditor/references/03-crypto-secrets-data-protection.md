@@ -11,6 +11,7 @@
   2. **Non-cryptographic PRNG:** `Math.random()`, a non-secure `rand::thread_rng`, `java.util.Random`, or Python `random` used to generate tokens, OTP codes, API keys, or reset links. Require `crypto.randomBytes` / `secrets` / `SecureRandom` / `OsRng` exclusively.
   3. **Non-constant-time comparison:** Comparing HMAC signatures, API keys, or tokens with `==` / `===` exposes *timing attacks*. Require `crypto.timingSafeEqual` / `hmac.compare_digest` / `subtle::ConstantTimeEq`.
   4. **Hard-coded static keys or keys shared across environments:** Strictly separate dev/staging/prod cryptographic keys and use *envelope encryption* (DEK encrypted by a KEK in KMS/Vault) with rotation support.
+- **Post-quantum, what is production-ready:** the hybrid TLS 1.3 key exchange `X25519MLKEM768` (RFC 10024) is on by default in Chrome, Firefox, Safari 26, OpenSSL 3.5+ and `rustls` 0.23.27+. Enable it on the edge and servers against the *harvest now, decrypt later* risk, after testing middleboxes (ClientHello of about 1.3 KB). Post-quantum certificates (ML-DSA) have no browser support or public CA: start with a cryptographic inventory and reserve ML-DSA for internal uses.
 
 ## 2. Secrets management and eliminating static keys
 
@@ -23,6 +24,7 @@
 ## 3. Data protection and privacy (PII / GDPR)
 
 - **Transport:** TLS 1.2+ (TLS 1.3 preferred), strict disabling of weak ciphers and TLS 1.0/1.1; strict certificate verification (never `rejectUnauthorized: false` or `InsecureSkipVerify: true` outside an isolated local dev setup).
+- **Certificates and pinning (rule shared by the platform skills):** public TLS certificates last 200 days at most since 2026-03-15 (100 days in 2027, 47 days in 2029): automated ACME renewal is mandatory. Pin only if compliance requires it, on a CA public key and never on the leaf, with backup keys and an MDM kill switch. Otherwise pinning breaks enterprise TLS inspection proxies.
 - **Minimization and exposure:**
   - Never return internal/sensitive fields (`password_hash`, `mfa_secret`, `internal_notes`, `stripe_secret`) in API responses or SSR payloads.
   - Forbid unanonymized production dumps in development or staging environments.

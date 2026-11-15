@@ -15,6 +15,7 @@ Choose the process architecture explicitly:
 - **Topology and enterprise network (critical):**
   - Native monitoring via `NWPathMonitor` (macOS) / Windows network APIs to detect Wi-Fi/VPN switches, and reduced cadence in power-saving mode (*Low Power Mode*).
   - **TLS inspection and corporate proxies:** In `reqwest` / `rustls`, **never rely on `webpki-roots` alone**. Use **`rustls-platform-verifier`** (or `native-tls`) to trust internal certificate authorities injected by MDM (Zscaler, Netskope, corporate proxy), and honor OS proxy / PAC / `HTTPS_PROXY` settings.
+  - **Hybrid post-quantum key exchange:** `rustls` negotiates `X25519MLKEM768` by default since 0.23.27. The ClientHello grows from about 300 bytes to 1.3 KB and some older TLS inspection appliances reject it. Test behind customer proxies, expose an option (MDM profile or configuration file) to fall back to classical groups, and surface negotiation failures in *Doctor*.
 
 ## 3. System tray and Dual-Window architecture
 

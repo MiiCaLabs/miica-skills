@@ -2,10 +2,10 @@
 
 ## 1. Authentication: BFF cookies vs SPA PKCE
 
-- **Recommended enterprise standard (BFF):**
-  - The BFF handles the OAuth 2.0 / OIDC + PKCE flow with the IdP (Entra ID, Okta, Keycloak), keeps the `access_token` and `refresh_token` server-side / in an encrypted session, and gives the browser only an **`HttpOnly; Secure; SameSite=Lax; Path=/` session cookie**.
+- **Recommended enterprise standard (BFF, the most robust model according to RFC 10017 / BCP 212):**
+  - The BFF handles the OAuth 2.0 / OIDC + PKCE flow with the IdP (Entra ID, Okta, Keycloak), keeps the `access_token` and `refresh_token` server-side / in an encrypted session, and gives the browser only a **`__Host-` prefixed `HttpOnly; Secure; SameSite=Lax; Path=/` session cookie**.
   - **Zero tokens in `localStorage` or `sessionStorage`:** A single third-party XSS script (analytics, compromised dependency) immediately exfiltrates any JavaScript-readable token.
-- **If pure SPA without a BFF (purely static architecture):** Use OAuth 2.0 + PKCE with tokens stored **exclusively in JS memory** (or an isolated Service Worker) and short-lived *refresh token rotation* on the IdP side.
+- **If pure SPA without a BFF (purely static architecture):** RFC 10017 (Aug. 2026) ranks this model as the most exposed to malicious JavaScript. Use OAuth 2.0 + PKCE, tokens **in memory only**, short-lived *refresh token rotation* and, if the IdP allows it, tokens bound with **DPoP** (RFC 9449). A Service Worker does not protect against a script that restarts an authorization flow itself to obtain fresh tokens.
 
 ## 2. Critical security of full-stack frameworks (Next.js / Astro SSR / Angular SSR)
 
@@ -15,6 +15,7 @@
 - **Hardening Server Actions (`"use server"` Next.js / Astro Actions):**
   - A Server Action is technically a **public HTTP POST endpoint** that can be invoked directly with any forged JSON payload.
   - Mandatory in **every** Server Action: 1) verify authentication + authorization on the targeted resource (IDOR), 2) validate all arguments with Zod/Valibot, 3) never return a raw DB object (strict DTO).
+- **RSC runtime patches:** CVE-2025-55182 (Dec. 2025) hit the Flight protocol of React 19.0 through 19.2.0, and therefore every Next.js 15/16 App Router app, even without a declared Server Action. DAL checks could not help; only the patch protected. Follow the Next.js security release process (formalized in July 2026) and include `react-server-dom-*` in SCA monitoring.
 - **Client / server partitioning:**
   - Never expose secrets in public-prefixed variables (`NEXT_PUBLIC_*`, `VITE_*`, `PUBLIC_*`).
   - Use `server-only` (Next.js) in DAL modules and pass only strictly necessary fields to Client Components (avoid serializing full user objects in the HTML/RSC payload).
@@ -22,7 +23,7 @@
 ## 3. XSS defense, strict CSP, and HTTP headers
 
 - **Modern Content Security Policy (CSP):**
-  - On SSR applications: generate a **random per-request nonce** for `script-src 'nonce-...' 'strict-dynamic'` without `unsafe-inline` or `unsafe-eval`. (Astro 6 offers stable native declarative CSP support.)
+  - On SSR applications: generate a **random per-request nonce** for `script-src 'nonce-...' 'strict-dynamic'` without `unsafe-inline` or `unsafe-eval`. (Astro 6 generates a stable hash-based CSP, suited to static pages; nonces remain the rule for dynamic SSR.)
   - Enable **Trusted Types** (`require-trusted-types-for 'script'`) on critical applications to structurally block DOM-XSS.
 - **Sanitization and injection:**
   - Ban `dangerouslySetInnerHTML` (React), `set:html` (Astro), and `[innerHTML]` (Angular) without passing through a strictly configured **DOMPurify**.

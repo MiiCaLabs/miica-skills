@@ -6,7 +6,7 @@
 - **Validation layers:**
   - *Unit and property tests:* `cargo test` + `proptest` on state machines, IPC serialization, and reconciliation.
   - *Desktop E2E (Tauri v2):*
-    - **WebdriverIO (`@wdio/tauri-service`)** to drive the full app (`tauri-driver` on Windows/Linux, and an embedded WebDriver server such as `tauri-plugin-wdio-webdriver` on **macOS**, because `tauri-driver` does not support macOS/`WKWebView`).
+    - **WebdriverIO (`@wdio/tauri-service`)** to drive the full app. The default provider (`embedded`) runs a WebDriver server inside the app through `tauri-plugin-wdio-webdriver` on all three OSes. It is the only free route on **macOS**, where `tauri-driver` cannot drive `WKWebView`. Compile this plugin into test builds only.
     - **Playwright** is reserved for fast testing of the isolated frontend (with IPC mocks) or CDP attachment to WebView2 on Windows.
   - *GPUI E2E:* Headless `#[gpui::test]` harness.
 
@@ -22,7 +22,7 @@
 - **Dependency governance:** `cargo-deny` in CI (allowed licenses, rustsec advisories, duplicate checks) + an **SBOM** (CycloneDX/SPDX) generated on every release.
 - **Automated signing and notarization:**
   - *macOS:* Universal build (`aarch64` + `x86_64`), `codesign` signing (*Developer ID Application* + *Hardened Runtime*), notarization through `notarytool`, and stapling (`stapler`) in `.dmg` / `.pkg`.
-  - *Windows (no more exportable `.pfx` since June 2023):* Authenticode signing in CI must go through a **Cloud HSM**: **Certum SimplySign**, **SSL.com eSigner**, **DigiCert KeyLocker**, or **Azure Artifact Signing** (formerly *Azure Trusted Signing*; note that it is geographically restricted to entities registered in the eligible country list).
+  - *Windows:* Authenticode signing in CI through a hardware key or **Cloud HSM** (**Certum SimplySign**, **SSL.com eSigner**, **DigiCert KeyLocker** or **Azure Artifact Signing**, open only to entities in eligible countries). A certificate issued since 2026-03-01 lasts 460 days at most: automate renewal and timestamp every signature (RFC 3161) so binaries stay valid after the certificate expires.
 - **Enterprise reality (MDM and non-admin):**
   - Ship packages deployable via **Intune / Jamf** (per-machine `.msi` or macOS `.pkg`) for machines without administrator privileges.
   - **Auto-updater disabled by IT policy:** Expose a Windows GPO/Registry key or a macOS MDM `plist` profile that disables the built-in auto-update when IT manages the version cycle.

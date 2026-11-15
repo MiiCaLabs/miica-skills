@@ -19,6 +19,7 @@ It is **impossible** to guarantee exact periodic background execution every N mi
 - **Enterprise proxies and TLS inspection:**
   - On Android, configure `res/xml/network_security_config.xml` to forbid cleartext traffic (`cleartextTrafficPermitted="false"`) and, if required by IT on MDM-managed devices, allow user/MDM CA certificates (`<certificates src="user" />` only in an enterprise build or through a controlled policy).
   - **Certificate pinning pitfall:** Strict pinning in the binary abruptly breaks the whole app on a server certificate rotation or behind an enterprise SSL proxy (Zscaler, Netskope). If pinning is mandated by compliance, **always include at least 2 backup pins (SPKI hash)** and be able to disable/update the configuration through MDM/AppConfig.
+  - **Shorter TLS lifetimes:** public certificates are capped at 200 days since 2026-03-15 (100 days in 2027, 47 days in 2029). Never pin the leaf certificate: pin the public key of an intermediate or root CA, plus backup keys (shared rule: `security-auditor` reference 03).
 
 ## 3. Secure push notifications and deep routing
 
