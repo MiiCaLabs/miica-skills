@@ -8,6 +8,10 @@ Curated, reusable skills for AI coding agents. Each skill follows the open [Agen
 | --- | --- |
 | `zoho-crm-widget` | Building and debugging Zoho CRM widgets, Client Scripts, Embedded App SDK integrations, ZRC, and ZOHO.CRM APIs |
 | `zoho-deluge` | Writing, reviewing, refactoring, and debugging Deluge across Zoho products |
+| `desktop-architect` | Architecture and standards for enterprise desktop apps in Rust (Tauri v2, GPUI): daemons, local-first sync, tray, security, signing, MDM |
+| `mobile-architect` | Architecture and standards for enterprise iOS and Android apps: offline-first, background limits, auth, attestation, stores, MDM |
+| `security-auditor` | Security audits, threat modeling, and hardening aligned with OWASP Top 10:2025, ASVS 5.0, and SLSA |
+| `web-architect` | Architecture and standards for enterprise web apps in React, Next.js, Astro, and Angular: rendering, BFF auth, CSP, Core Web Vitals, QA |
 
 ## Install a skill
 
